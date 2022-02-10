@@ -6,7 +6,7 @@ NetTrust is a Dynamic Firewall Authorizer. It uses a DNS as a source of truth to
 
 The ideas is that we want to grant network access only to networks or hosts that we trust. Trusted networks and hosts are whitelisted in Output Netfilter Hook, while all others are rejected.
 
-The pros by using a source of truth is that we essentially block outbound traffic to:
+To increase security or privacy, we usually want to block outbound traffic to:
 
 - Blocked DNS Queries
 - Direct Network Communication (Static IP, no Query made)
