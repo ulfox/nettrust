@@ -1,0 +1,10 @@
+{
+    "whitelist": {
+        "networks": [],
+        "hosts": []
+    },
+    "blacklist": {
+        "networks": [],
+        "hosts": []
+    }
+}
