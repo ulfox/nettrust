@@ -129,7 +129,7 @@ Note: Whitelisting, blacklisting should be done automatically via DNS proxy. Thi
 
 We can add hosts or networks to whitelist or blacklist by using
 
-- Enviromental variables
+- Environmental variables
 - config file `config.json`
 
 Note: Networks are evaluated first in the chain managed by NetTrust (See NFTables Overview for additional info)
@@ -172,7 +172,7 @@ Note: This is expected to be in the root of the directory hosts NetTrust binary
 NetTrust creates a table called `net-trust` and a chain called `authorized`. Inside the chain it also creates two sets
 
 - whitelist: populated by whitelisted hosts during init of NetTrust. This set should stay static during the lifetime of NetTrust (or unless new hosts are whitelisted)
-- authorized: this set is used to add authorized hosts. If TTL is set to `-1` then this set should only grow during the lifetime of NetTrust and emptied on exit (we empty to esnure we do not forget whitelisted hosts behind)
+- authorized: this set is used to add authorized hosts. If TTL is set to `-1` then this set should only grow during the lifetime of NetTrust and emptied on exit (we empty to ensure we do not forget whitelisted hosts behind)
 
 Example of a populated table and chain. Here 127.0.0.1 and 192.168.178.21 are redundant since we whitelisted the networks that contain them, but were added because 127.0.0.1 was the listening address of NetTrust dns proxy and 192.168.178.21 is the IP of a local DNS Black hole. We always whitelist listening address and forward address to ensure that NetTrust will work without issues for cases where NetTrust is started with `-whitelist-private=false`
 
