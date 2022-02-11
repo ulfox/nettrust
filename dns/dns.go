@@ -272,12 +272,14 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg) {
 	}
 	if host == "" || port == "" {
 		dns.HandleFailed(w, req)
+		s.logger.Fatalf("forward dns address is not valid [%s:%s]", host, port)
 		return
 	}
 
 	c := &dns.Client{Net: "udp"}
 	resp, _, err := c.Exchange(req, s.fwdAddr)
 	if err != nil {
+		s.logger.Error(err)
 		dns.HandleFailed(w, req)
 		return
 	}
@@ -285,10 +287,13 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg) {
 	err = s.handleRequest(resp)
 	if err != nil {
 		s.logger.Error(err)
+		dns.HandleFailed(w, req)
+		return
 	}
 
 	err = w.WriteMsg(resp)
 	if err != nil {
 		s.logger.Error(err)
+		dns.HandleFailed(w, req)
 	}
 }
