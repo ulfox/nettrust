@@ -45,7 +45,7 @@ func main() {
 	dnsServer, err := dns.NewDNSServer(
 		config.ListenAddr,
 		config.FWDAddr,
-		config.WhitelistTTL,
+		config.AuthorizedTTL,
 		logger,
 	)
 	if err != nil {

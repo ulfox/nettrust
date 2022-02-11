@@ -21,7 +21,7 @@ type NetTrust struct {
 	Env                               map[string]string
 	FWDAddr, ListenAddr, FirewallType string
 	WhitelistLo, WhiteListPrivate     []string
-	WhitelistTTL                      int
+	AuthorizedTTL                     int
 }
 
 // GetADHoleEnv will read environ and create a map of k:v from envs
@@ -32,7 +32,7 @@ func GetNetTrustEnv() (*NetTrust, error) {
 	firewallType := flag.String("firewall-type", "nftables", "NetTrust firewall type (nftables is only supported for now)")
 	whitelistLoopback := flag.Bool("whitelist-loopback", true, "Loopback network space 127.0.0.0/8 will be whitelisted (default true)")
 	whitelistPrivate := flag.Bool("whitelist-private", true, "If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted")
-	whitelistTTL := flag.Int("whitelist-ttl", -1, "Number of seconds a whitelisted host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)")
+	authorizedTTL := flag.Int("authorized-ttl", -1, "Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)")
 	flag.Parse()
 
 	var key string
@@ -67,7 +67,7 @@ func GetNetTrustEnv() (*NetTrust, error) {
 	config.FWDAddr = *fwdAddr
 	config.ListenAddr = *listenAddr
 	config.FirewallType = *firewallType
-	config.WhitelistTTL = *whitelistTTL
+	config.AuthorizedTTL = *authorizedTTL
 	if *whitelistLoopback {
 		config.WhitelistLo = []string{"127.0.0.0/8"}
 	}
