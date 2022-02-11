@@ -9,30 +9,25 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
-	"github.com/ulfox/nettrust/dns/cache"
-	"github.com/ulfox/nettrust/firewall"
 )
 
 // Server defines NetTrust DNS Server proxy. The server invokes firewall calls also
 type Server struct {
 	sync.Mutex
 
-	listenAddr, fwdAddr, authorizedSet, fwdProto string
-	logger                                       *logrus.Logger
-	fwl                                          *logrus.Entry
-	udpServer, tcpServer                         *dns.Server
-	fw                                           *firewall.Firewall
-	Cache                                        *cache.Authorized
-	blacklistHosts, blacklistNetworks            []string
+	listenAddr, fwdAddr, fwdProto string
+	logger                        *logrus.Logger
+	fwdl                          *logrus.Entry
+	udpServer, tcpServer          *dns.Server
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
-func NewDNSServer(laddr, faddr, fwdProto string, ttl int, logger *logrus.Logger) (*Server, error) {
+func NewDNSServer(laddr, faddr, fwdProto string, logger *logrus.Logger) (*Server, error) {
 	if laddr == "" || faddr == "" {
-		return nil, fmt.Errorf("forward dns host: addr  can not be empty")
+		return nil, fmt.Errorf(ErrFWDNSAddr)
 	}
 	if fwdProto != "udp" && fwdProto != "tcp" {
-		return nil, fmt.Errorf("forward tcp proto can be either tcp or udp")
+		return nil, fmt.Errorf(ErrFWDNSProto)
 	}
 
 	server := &Server{
@@ -40,8 +35,12 @@ func NewDNSServer(laddr, faddr, fwdProto string, ttl int, logger *logrus.Logger)
 		fwdAddr:    faddr,
 		fwdProto:   fwdProto,
 		logger:     logger,
-		Cache:      cache.NewCache(ttl),
 	}
+
+	server.fwdl = server.logger.WithFields(logrus.Fields{
+		"Component": "DNS Server",
+		"Stage":     "Forward",
+	})
 
 	return server, nil
 }
@@ -62,84 +61,12 @@ func (f *ServiceContext) Wait() {
 	f.wg.Wait()
 }
 
-// FirewallStart creates a new firewall and starts a goroutine for checking expired hosts in the cache. Expired hosts are checked each 30 sec, does nothing if TTL < 0
-func (s *Server) FirewallStart(t, table, chain, authorizedSet string, blacklistHosts, blacklistNetworks []string) (*firewall.Firewall, *ServiceContext, error) {
-	s.blacklistHosts = blacklistHosts
-	s.blacklistNetworks = blacklistNetworks
-	s.authorizedSet = authorizedSet
-
-	fw, err := firewall.NewFirewall(t, table, chain, s.logger)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	s.fw = fw
-
-	log := s.logger.WithFields(logrus.Fields{
-		"Component": "Firewall",
-		"Stage":     "Authorizer",
-	})
-	s.fwl = log
-
-	firewallContext := &ServiceContext{}
-
-	var serviceWG sync.WaitGroup
-	firewallContext.wg = &serviceWG
-
-	ctx, cancel := context.WithCancel(context.Background())
-	firewallContext.cancel = cancel
-
-	serviceWG.Add(1)
-	go func(ctx context.Context, wg *sync.WaitGroup, c *cache.Authorized, l *logrus.Entry) {
-		ticker := time.NewTicker(30 * time.Second)
-		for {
-			select {
-			case <-ctx.Done():
-				l := l.WithFields(logrus.Fields{
-					"Component": "Firewall",
-					"Stage":     "Deauthorize",
-				})
-
-				for h := range c.Hosts {
-					l.Infof("Removing host [%s] from firewall rules", h)
-					err := fw.DeleteIPv4FromSetRule(s.authorizedSet, h)
-					if err != nil {
-						l.Error(err)
-					}
-					c.Delete(h)
-				}
-
-				l.Info("Bye!")
-				wg.Done()
-				return
-			case <-ticker.C:
-				l.Debug("Checking cache for expired hosts")
-				for _, h := range s.Cache.Expired() {
-					l.Debugf("Host [%s] has expired. Removing from firewall rules", h)
-					err := fw.DeleteIPv4FromSetRule(s.authorizedSet, h)
-					if err != nil {
-						l.Error(err)
-					}
-					l.Debugf("Deleting host [%s] from cache", h)
-					c.Delete(h)
-				}
-			default:
-				time.Sleep(time.Millisecond * 50)
-			}
-		}
-	}(ctx, &serviceWG, s.Cache, log)
-
-	return fw, firewallContext, nil
-}
-
 // UDPListenBackground for spawning a udp DNS Server
-func (s *Server) UDPListenBackground() *ServiceContext {
-	log := s.logger.WithFields(logrus.Fields{
+func (s *Server) UDPListenBackground(fn func(resp *dns.Msg) error) *ServiceContext {
+	s.logger.WithFields(logrus.Fields{
 		"Component": "DNS Server",
 		"Stage":     "Init",
-	})
-
-	log.Info("Starting UDP DNS Server")
+	}).Info("Starting UDP DNS Server")
 
 	dnsServerContext := &ServiceContext{}
 
@@ -153,14 +80,14 @@ func (s *Server) UDPListenBackground() *ServiceContext {
 		Addr: s.listenAddr, Net: "udp",
 		Handler: dns.HandlerFunc(
 			func(w dns.ResponseWriter, r *dns.Msg) {
-				s.fwd(w, r)
+				s.fwd(w, r, fn)
 			},
 		),
 	}
 
 	serviceListenerWG.Add(1)
-	go func(wg *sync.WaitGroup, srv *dns.Server, l *logrus.Entry) {
-		l = l.WithFields(logrus.Fields{
+	go func(wg *sync.WaitGroup, srv *dns.Server) {
+		l := s.logger.WithFields(logrus.Fields{
 			"Component": "[UDP] DNSServer",
 			"Stage":     "Init",
 		})
@@ -170,18 +97,18 @@ func (s *Server) UDPListenBackground() *ServiceContext {
 			l.Error(err)
 		}
 		wg.Done()
-	}(&serviceListenerWG, s.udpServer, log)
+	}(&serviceListenerWG, s.udpServer)
 
 	serviceListenerWG.Add(1)
-	go func(ctx context.Context, wg *sync.WaitGroup, srv *dns.Server, l *logrus.Entry) {
+	go func(ctx context.Context, wg *sync.WaitGroup, srv *dns.Server) {
+		l := s.logger.WithFields(logrus.Fields{
+			"Component": "[UDP] DNSServer",
+			"Stage":     "Term",
+		})
+
 		for {
 			select {
 			case <-ctx.Done():
-				l = l.WithFields(logrus.Fields{
-					"Component": "[UDP] DNSServer",
-					"Stage":     "Term",
-				})
-
 				if err := srv.Shutdown(); err != nil {
 					l.Fatal(err)
 				}
@@ -192,19 +119,17 @@ func (s *Server) UDPListenBackground() *ServiceContext {
 				time.Sleep(time.Millisecond * 50)
 			}
 		}
-	}(ctxListener, &serviceListenerWG, s.udpServer, log)
+	}(ctxListener, &serviceListenerWG, s.udpServer)
 
 	return dnsServerContext
 }
 
 // TCPListenBackground for spawning a tcp DNS Server
-func (s *Server) TCPListenBackground() *ServiceContext {
-	log := s.logger.WithFields(logrus.Fields{
+func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceContext {
+	s.logger.WithFields(logrus.Fields{
 		"Component": "DNS Server",
 		"Stage":     "Init",
-	})
-
-	log.Info("Starting TCP DNS Server")
+	}).Info("Starting TCP DNS Server")
 
 	dnsServerContext := &ServiceContext{}
 
@@ -218,14 +143,14 @@ func (s *Server) TCPListenBackground() *ServiceContext {
 		Addr: s.listenAddr, Net: "tcp",
 		Handler: dns.HandlerFunc(
 			func(w dns.ResponseWriter, r *dns.Msg) {
-				s.fwd(w, r)
+				s.fwd(w, r, fn)
 			},
 		),
 	}
 
 	serviceListenerWG.Add(1)
-	go func(wg *sync.WaitGroup, srv *dns.Server, l *logrus.Entry) {
-		l = l.WithFields(logrus.Fields{
+	go func(wg *sync.WaitGroup, srv *dns.Server) {
+		l := s.logger.WithFields(logrus.Fields{
 			"Component": "[TCP] DNSServer",
 			"Stage":     "Init",
 		})
@@ -235,18 +160,17 @@ func (s *Server) TCPListenBackground() *ServiceContext {
 			l.Error(err)
 		}
 		wg.Done()
-	}(&serviceListenerWG, s.tcpServer, log)
+	}(&serviceListenerWG, s.tcpServer)
 
 	serviceListenerWG.Add(1)
-	go func(ctx context.Context, wg *sync.WaitGroup, srv *dns.Server, l *logrus.Entry) {
+	go func(ctx context.Context, wg *sync.WaitGroup, srv *dns.Server) {
+		l := s.logger.WithFields(logrus.Fields{
+			"Component": "[TCP] DNSServer",
+			"Stage":     "Term",
+		})
 		for {
 			select {
 			case <-ctx.Done():
-				l = l.WithFields(logrus.Fields{
-					"Component": "[TCP] DNSServer",
-					"Stage":     "Term",
-				})
-
 				if err := srv.Shutdown(); err != nil {
 					l.Fatal(err)
 				}
@@ -257,47 +181,48 @@ func (s *Server) TCPListenBackground() *ServiceContext {
 				time.Sleep(time.Millisecond * 50)
 			}
 		}
-	}(ctxListener, &serviceListenerWG, s.tcpServer, log)
+	}(ctxListener, &serviceListenerWG, s.tcpServer)
 
 	return dnsServerContext
 }
 
-func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg) {
+func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) error) {
 	if len(req.Question) == 0 {
 		dns.HandleFailed(w, req)
+		s.qe(w, req, fmt.Errorf(ErrQuery))
 		return
 	}
 
 	host, port, err := net.SplitHostPort(s.fwdAddr)
 	if err != nil {
-		s.logger.Error(err)
-		dns.HandleFailed(w, req)
+		s.qe(w, req, err)
 		return
 	}
 	if host == "" || port == "" {
-		dns.HandleFailed(w, req)
-		s.logger.Fatalf("forward dns address is not valid [%s:%s]", host, port)
+		s.qe(w, req, fmt.Errorf(ErrFWDNSAddrInvalid, host, port))
 		return
 	}
 
 	c := &dns.Client{Net: s.fwdProto}
 	resp, _, err := c.Exchange(req, s.fwdAddr)
 	if err != nil {
-		s.logger.Error(err)
-		dns.HandleFailed(w, req)
+		s.qe(w, req, err)
 		return
 	}
 
-	err = s.handleRequest(resp)
+	err = fn(resp)
 	if err != nil {
-		s.logger.Error(err)
-		dns.HandleFailed(w, req)
+		s.qe(w, req, err)
 		return
 	}
 
 	err = w.WriteMsg(resp)
 	if err != nil {
-		s.logger.Error(err)
-		dns.HandleFailed(w, req)
+		s.qe(w, req, err)
 	}
+}
+
+func (s *Server) qe(w dns.ResponseWriter, req *dns.Msg, err error) {
+	s.fwdl.Error(err)
+	dns.HandleFailed(w, req)
 }

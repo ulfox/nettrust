@@ -46,7 +46,6 @@ func main() {
 		config.ListenAddr,
 		config.FWDAddr,
 		config.FWDProto,
-		config.AuthorizedTTL,
 		logger,
 	)
 	if err != nil {
@@ -54,14 +53,13 @@ func main() {
 	}
 
 	// Firewall
-	fw, fwContext, err := dnsServer.FirewallStart(
-		config.FirewallType,
-		tableName,
-		chainName,
-		authorizedSet,
-		config.Blacklist.Hosts,
-		config.Blacklist.Networks,
-	)
+	fw, err := firewall.NewFirewall(config.FirewallType, tableName, chainName, logger)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fw.SetBlacklists(config.Blacklist.Hosts, config.Blacklist.Hosts)
+
+	fwContext, err := fw.TTLCacheChecker(config.AuthorizedTTL, config.TTLCheckTicker, authorizedSet)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,8 +72,8 @@ func main() {
 	}
 
 	// Init DNS Servers
-	udpDNSServerContext := dnsServer.UDPListenBackground()
-	tcpDNSServerContext := dnsServer.TCPListenBackground()
+	udpDNSServerContext := dnsServer.UDPListenBackground(fw.HandleRequest)
+	tcpDNSServerContext := dnsServer.TCPListenBackground(fw.HandleRequest)
 
 	sysSigs := utils.NewOSSignal()
 
