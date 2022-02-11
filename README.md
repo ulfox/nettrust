@@ -54,10 +54,10 @@ This is how NetTrust works. It is small dns proxy with Netfilter management capa
 
 ```bash
 
-    ________________                         ____________                   ____________
-   |                |     Query: x.x.x.x    |            |     Forward     |            |
-   | Host Process A |=--------------------> |  NetTrust  |=--------------> | DNS Server |
-   |________________|                       |____________|                 |____________|
+    ________________                             ____________                   ____________
+   |                |     Query: example.com    |            |     Forward     |            |
+   | Host Process A |=------------------------> |  NetTrust  |=--------------> | DNS Server |
+   |________________|                           |____________|                 |____________|
 
 ```
 
@@ -66,22 +66,22 @@ In the above diagram queries are sent to NetTrust, and from there NetTrust forwa
 
 ```bash
 
-    ________________                         ____________                   ____________
-   |                |     Query: x.x.x.x    |            |     Reply OK    |            |
-   | Host Process A |=--------------------> |  NetTrust  | <--------------=| DNS Server |
-   |________________|                       |____________|                 |____________|
-            |                                      |
-            |                                      |
-            |                                      |
-            |                                      |
-            |                                      |         _____________
-            |                                      |        |             |
-            |                                      |=-----> |  Netfilter  |
-            |                                               |             |
-            |                                                -------------
-     ______________                                                |
-    |              |          x.x.x.x is whitelisted               |
-    | OUTPUT HOOK  | <--------------------------------------------=|
+    ________________                             ____________                   ____________
+   |                |     Query: example.com    |            |     Reply OK    |            |
+   | Host Process A |=------------------------> |  NetTrust  | <--------------=| DNS Server |
+   |________________|                           |____________|                 |____________|
+            |                                          |
+            |                                          |
+            |                                          |
+            |                                          |
+            |                                          |         _____________
+            |                                          |        |             |
+            |                                          |=-----> |  Netfilter  |
+            |                                                   |             |
+            |                                                    -------------
+     ______________                                                    |
+    |              |          x.x.x.x is whitelisted                   |
+    | OUTPUT HOOK  | <------------------------------------------------=|
     |______________|
 ```
 
