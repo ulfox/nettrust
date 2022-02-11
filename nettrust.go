@@ -46,6 +46,8 @@ func main() {
 		config.ListenAddr,
 		config.FWDAddr,
 		config.FWDProto,
+		config.FWDCaCert,
+		config.FWDTLS,
 		logger,
 	)
 	if err != nil {

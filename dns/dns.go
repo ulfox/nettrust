@@ -2,8 +2,12 @@ package dns
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"os"
 	"sync"
 	"time"
 
@@ -16,25 +20,62 @@ type Server struct {
 	sync.Mutex
 
 	listenAddr, fwdAddr, fwdProto string
+	fwdTLS                        bool
 	logger                        *logrus.Logger
 	fwdl                          *logrus.Entry
+	client                        *dns.Client
 	udpServer, tcpServer          *dns.Server
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
-func NewDNSServer(laddr, faddr, fwdProto string, logger *logrus.Logger) (*Server, error) {
+func NewDNSServer(laddr, faddr, fwdProto, cacert string, fwdTLS bool, logger *logrus.Logger) (*Server, error) {
 	if laddr == "" || faddr == "" {
 		return nil, fmt.Errorf(ErrFWDNSAddr)
 	}
+
+	if fwdTLS && fwdProto != "tcp" {
+		return nil, fmt.Errorf(ErrFWDTLS)
+	}
+
 	if fwdProto != "udp" && fwdProto != "tcp" {
 		return nil, fmt.Errorf(ErrFWDNSProto)
+	}
+
+	host, port, err := net.SplitHostPort(faddr)
+	if err != nil {
+		return nil, err
+	}
+
+	if host == "" || port == "" {
+		return nil, fmt.Errorf(ErrFWDNSAddrInvalid, host, port)
+	}
+
+	if fwdTLS && port == "53" {
+		logger.Warn(WarnFWDTLSPort)
+	}
+
+	client := &dns.Client{Net: fwdProto}
+	if fwdTLS {
+		client.Net = "tcp-tls"
+	}
+
+	if cacert != "" {
+		certPool, err := loadCaCert(cacert)
+		if err != nil {
+			return nil, err
+		}
+		client.TLSConfig = &tls.Config{
+			RootCAs: certPool,
+		}
 	}
 
 	server := &Server{
 		listenAddr: laddr,
 		fwdAddr:    faddr,
 		fwdProto:   fwdProto,
+		fwdTLS:     fwdTLS,
 		logger:     logger,
+		client:     client,
 	}
 
 	server.fwdl = server.logger.WithFields(logrus.Fields{
@@ -43,6 +84,27 @@ func NewDNSServer(laddr, faddr, fwdProto string, logger *logrus.Logger) (*Server
 	})
 
 	return server, nil
+}
+
+func loadCaCert(ca string) (*x509.CertPool, error) {
+	f, err := os.Stat(ca)
+	if os.IsNotExist(err) {
+		return nil, err
+	}
+
+	if f.IsDir() {
+		return nil, fmt.Errorf(ErrNotAFile, ca)
+	}
+
+	data, err := ioutil.ReadFile(ca)
+	if err != nil {
+		return nil, err
+	}
+
+	certPool := x509.NewCertPool()
+	certPool.AppendCertsFromPEM(data)
+
+	return certPool, nil
 }
 
 // ServiceContext for canceling goroutins
@@ -193,18 +255,7 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 		return
 	}
 
-	host, port, err := net.SplitHostPort(s.fwdAddr)
-	if err != nil {
-		s.qe(w, req, err)
-		return
-	}
-	if host == "" || port == "" {
-		s.qe(w, req, fmt.Errorf(ErrFWDNSAddrInvalid, host, port))
-		return
-	}
-
-	c := &dns.Client{Net: s.fwdProto}
-	resp, _, err := c.Exchange(req, s.fwdAddr)
+	resp, _, err := s.client.Exchange(req, s.fwdAddr)
 	if err != nil {
 		s.qe(w, req, err)
 		return
