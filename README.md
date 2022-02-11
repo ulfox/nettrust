@@ -37,7 +37,7 @@ The problem here is is that it is hard to filter all good hosts due to:
 - big number of public IPs. The total number of IPv4 addresses may be small for the world, but is really huge to filter it in a list
 - hosts usually change IPs, which makes the management of a whitelist even harder
 
-To work around this (up to a way, because as always everything has its weaknesses) is to use DNS for traffic authorization.
+A work around this issue (up to a way, because as always everything has its weaknesses), is to use DNS for traffic authorization.
 
 ### DNS Authorizer
 
@@ -48,7 +48,7 @@ With DNS Authorizer we can:
 - Use them to filter our unwanted domains   (most common, needs a list of bad hosts)
 - Use them to filter in only wanted domains (most secure, needs a lot more work    )
 
-By using a DNS Authorizer we have the pros of a DNS Blackhole + easy filtering of IPs. All we need is to block all outbound traffic and allow only the traffic that DNS answers in the queries
+By using a DNS Authorizer we have the pros of a DNS Blackhole + easy filtering of IPs. All we need, is to block all outbound traffic and then allow only the traffic that DNS answers in the queries
 
 This is how NetTrust works. It is small dns proxy with Netfilter management capabilities.
 
@@ -85,7 +85,7 @@ In the above diagram queries are sent to NetTrust, and from there NetTrust forwa
     |______________|
 ```
 
-Once NetTrust receives a query, it checks if there are any answers (hosts resolved). If there are, it proceeds by updating firewall rules (e.g. nftables) in order to allow network access to the resolved hosts. If there is no answer, or if the answer is **0.0.0.0**, no action is taken. In all cases, the dns reply is sent back to the requestor process after a firewall decision has been made (if any).
+Once NetTrust receives a query response, it checks if there are any answers (hosts resolved). If there are, it proceeds by updating firewall rules (e.g. nftables) in order to allow network access to the resolved hosts. If there is no answer, or if the answer is **0.0.0.0**, no action is taken. In all cases, the dns reply is sent back to the requestor process after a firewall decision has been made (if any).
 
 ## Build
 
@@ -97,7 +97,7 @@ To build NetTrust, simply issue:
 
 ## Run NetTrust
 
-Note: NetTrust needs to make changes on Netfilter, for that, it requires root access
+Note: NetTrust needs to interact Netfilter, for that, it requires root access
 
 To run NetTrust, issue `./nettrust  -fwd-addr "someIP:53" -listen-addr "127.0.0.1:53"`
 
@@ -119,8 +119,8 @@ NetTrust accepts the follwoing options
     	Loopback network space 127.0.0.0/8 will be whitelisted (default true)
   -whitelist-private
     	If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true)
-  -whitelist-ttl int
-    	Number of seconds a whitelisted host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire) (default -1)
+  -authorized-ttl int
+    	Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire) (default -1)
 ```
 
 ### NetTrust ENV/Config whitelist / blacklist
@@ -132,7 +132,7 @@ We can add hosts or networks to whitelist or blacklist by using
 - Environmental variables
 - config file `config.json`
 
-Note: Networks are evaluated first in the chain managed by NetTrust (See NFTables Overview for additional info)
+Note: Networks are evaluated first in the chain managed by NetTrust (for additional info, see NFTables Overview section at the end of this Readme)
 
 #### Using Environmental variables
 
@@ -148,11 +148,13 @@ Whitelist a network by exporting `NET_TRUST_WHITELIST_NETWORK_<someNetworkName>=
 export NET_TRUST_WHITELIST_NETWORK_HOME=192.168.1.0/24
 ```
 
+Note: blacklisting via env is not yet supported. Check config section in the next section to add blacklists
+
 #### Using Config file
 
 Use `config.json` to whitelist or blacklist hosts and networks
 
-Note: This is expected to be in the root of the directory hosts NetTrust binary
+Note: This is expected to be in the root directory that hosts NetTrust binary
 
 ```bash
 {
