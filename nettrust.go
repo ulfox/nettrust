@@ -45,6 +45,7 @@ func main() {
 	dnsServer, err := dns.NewDNSServer(
 		config.ListenAddr,
 		config.FWDAddr,
+		config.FWDProto,
 		config.AuthorizedTTL,
 		logger,
 	)

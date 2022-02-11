@@ -18,16 +18,17 @@ type NetTrust struct {
 		Networks []string `json:"networks"`
 		Hosts    []string `json:"hosts"`
 	} `json:"blacklist"`
-	Env                               map[string]string
-	FWDAddr, ListenAddr, FirewallType string
-	WhitelistLo, WhiteListPrivate     []string
-	AuthorizedTTL                     int
+	Env                                         map[string]string
+	FWDAddr, ListenAddr, FirewallType, FWDProto string
+	WhitelistLo, WhiteListPrivate               []string
+	AuthorizedTTL                               int
 }
 
 // GetADHoleEnv will read environ and create a map of k:v from envs
 // that have a NET_TRUST prefix. The prefix is removed
 func GetNetTrustEnv() (*NetTrust, error) {
 	fwdAddr := flag.String("fwd-addr", "", "NetTrust forward dns address")
+	fwdProto := flag.String("fwd-proto", "udp", "NetTrust dns forward protocol")
 	listenAddr := flag.String("listen-addr", "", "NetTrust listen dns address")
 	firewallType := flag.String("firewall-type", "nftables", "NetTrust firewall type (nftables is only supported for now)")
 	whitelistLoopback := flag.Bool("whitelist-loopback", true, "Loopback network space 127.0.0.0/8 will be whitelisted (default true)")
@@ -68,6 +69,7 @@ func GetNetTrustEnv() (*NetTrust, error) {
 	config.ListenAddr = *listenAddr
 	config.FirewallType = *firewallType
 	config.AuthorizedTTL = *authorizedTTL
+	config.FWDProto = *fwdProto
 	if *whitelistLoopback {
 		config.WhitelistLo = []string{"127.0.0.0/8"}
 	}

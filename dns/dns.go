@@ -17,24 +17,28 @@ import (
 type Server struct {
 	sync.Mutex
 
-	listenAddr, fwdAddr, authorizedSet string
-	logger                             *logrus.Logger
-	fwl                                *logrus.Entry
-	udpServer, tcpServer               *dns.Server
-	fw                                 *firewall.Firewall
-	Cache                              *cache.Authorized
-	blacklistHosts, blacklistNetworks  []string
+	listenAddr, fwdAddr, authorizedSet, fwdProto string
+	logger                                       *logrus.Logger
+	fwl                                          *logrus.Entry
+	udpServer, tcpServer                         *dns.Server
+	fw                                           *firewall.Firewall
+	Cache                                        *cache.Authorized
+	blacklistHosts, blacklistNetworks            []string
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
-func NewDNSServer(laddr, faddr string, ttl int, logger *logrus.Logger) (*Server, error) {
+func NewDNSServer(laddr, faddr, fwdProto string, ttl int, logger *logrus.Logger) (*Server, error) {
 	if laddr == "" || faddr == "" {
 		return nil, fmt.Errorf("forward dns host: addr  can not be empty")
+	}
+	if fwdProto != "udp" && fwdProto != "tcp" {
+		return nil, fmt.Errorf("forward tcp proto can be either tcp or udp")
 	}
 
 	server := &Server{
 		listenAddr: laddr,
 		fwdAddr:    faddr,
+		fwdProto:   fwdProto,
 		logger:     logger,
 		Cache:      cache.NewCache(ttl),
 	}
@@ -109,14 +113,14 @@ func (s *Server) FirewallStart(t, table, chain, authorizedSet string, blacklistH
 				wg.Done()
 				return
 			case <-ticker.C:
-				l.Info("Checking cache for expired hosts")
+				l.Debug("Checking cache for expired hosts")
 				for _, h := range s.Cache.Expired() {
-					l.Infof("Host [%s] has expired. Removing from firewall rules", h)
+					l.Debugf("Host [%s] has expired. Removing from firewall rules", h)
 					err := fw.DeleteIPv4FromSetRule(s.authorizedSet, h)
 					if err != nil {
 						l.Error(err)
 					}
-					l.Infof("Deleting host [%s] from cache", h)
+					l.Debugf("Deleting host [%s] from cache", h)
 					c.Delete(h)
 				}
 			default:
@@ -135,7 +139,7 @@ func (s *Server) UDPListenBackground() *ServiceContext {
 		"Stage":     "Init",
 	})
 
-	log.Info("Starting UDP and TCP DNS Servers")
+	log.Info("Starting UDP DNS Server")
 
 	dnsServerContext := &ServiceContext{}
 
@@ -200,7 +204,7 @@ func (s *Server) TCPListenBackground() *ServiceContext {
 		"Stage":     "Init",
 	})
 
-	log.Info("Starting UDP and TCP DNS Servers")
+	log.Info("Starting TCP DNS Server")
 
 	dnsServerContext := &ServiceContext{}
 
@@ -276,7 +280,7 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg) {
 		return
 	}
 
-	c := &dns.Client{Net: "udp"}
+	c := &dns.Client{Net: s.fwdProto}
 	resp, _, err := c.Exchange(req, s.fwdAddr)
 	if err != nil {
 		s.logger.Error(err)
