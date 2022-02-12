@@ -26,7 +26,7 @@ type NetTrust struct {
 	FWDCaCert               string `json:"fwdCaCert"`
 	ListenAddr              string `json:"listenAddr"`
 	FirewallType            string `json:"firewallType"`
-	whitelistLoEnabled      bool   `json:"whitelistLoEnabled"`
+	WhitelistLoEnabled      bool   `json:"whitelistLoEnabled"`
 	WhitelistPrivateEnabled bool   `json:"whitelistPrivateEnabled"`
 	WhitelistLo             []string
 	WhitelistPrivate        []string
@@ -133,7 +133,7 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		config.TTLCheckTicker = *ttlCheckTicker
 	}
 
-	if *whitelistLoopback || config.whitelistLoEnabled {
+	if *whitelistLoopback || config.WhitelistLoEnabled {
 		config.WhitelistLo = []string{"127.0.0.0/8"}
 	} else if *whitelistPrivate || config.WhitelistPrivateEnabled {
 		config.WhitelistPrivate = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"}
