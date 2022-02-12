@@ -1,6 +1,6 @@
-# NetTrust: Dynamic Firewall
+# NetTrust: Dynamic Outbound Firewall Authorizer
 
-NetTrust is a Dynamic Firewall Authorizer. It uses a DNS as a source of truth to allow/deny outbund requests
+NetTrust is a Dynamic Outbound Firewall Authorizer. It uses a DNS as a source of truth to allow/deny outbund requests
 
 ## Overview
 
@@ -91,7 +91,7 @@ Once NetTrust receives a query response, it checks if there are any answers (hos
 
 NetTrust by default does not enable TTL on authorized hosts. The max authorized time a host can get is the time that NetTrust runs. Once NetTrust exits gracefully, it will clear the authorized hosts.
 
-We can enable however TTL on authorized hosts. By adding a TTL, NetTrust will will allow communication to that host for as long as TTL is set. Once a host is expired and no session is active (see Conntrack section below), it will be removed from the authorized list and will be expected by the process that wants to continue communication to resolve the host via the DNS again.
+We can enable however TTL on authorized hosts. By adding a TTL, NetTrust will allow communication to that host for as long as TTL is set. Once a host is expired and no session is active (see Conntrack section below), it will be removed from the authorized list and will be expected by the process that wants to continue communication to resolve the host via the DNS again.
 
 #### Conntrack: Session liveness and TTL
 
