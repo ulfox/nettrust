@@ -87,6 +87,42 @@ In the above diagram queries are sent to NetTrust, and from there NetTrust forwa
 
 Once NetTrust receives a query response, it checks if there are any answers (hosts resolved). If there are, it proceeds by updating firewall rules (e.g. nftables) in order to allow network access to the resolved hosts. If there is no answer, or if the answer is **0.0.0.0**, no action is taken. In all cases, the dns reply is sent back to the requestor process after a firewall decision has been made (if any).
 
+### Authorized hosts TTL
+
+NetTrust by default does not enable TTL on authorized hosts. The max authorized time a host can get is the time that NetTrust runs. Once NetTrust exits gracefully, it will clear the authorized hosts.
+
+We can enable however TTL on authorized hosts. By adding a TTL, NetTrust will will allow communication to that host for as long as TTL is set. Once a host is expired and no session is active (see Conntrack section below), it will be removed from the authorized list and will be expected by the process that wants to continue communication to resolve the host via the DNS again.
+
+#### Conntrack: Session liveness and TTL
+
+All sessions that have TTL enabled will be checked against two rules. The first rule is the TTL itself. If the host has not expired, nothing happens, if it has expired, then conntrack will be checked to ensure that no connection with the specific host is active. If a tuple contains the host, either in the src or dst, then the TTL will be renewed and the host will be checked again in the next expiration. If the host is not part of any conntrack connection, then the host will be removed from the cache and the firewall's authorized hosts set
+
+```bash
+     _______                                   _____________
+    |       |        Get Expired Hosts        |             |
+    | Cache |=------------------------------> | TTL Checker |
+    |_______|                                 |_____________|
+                                                     |
+                                                     |
+                                           __________|__________
+                                          |                     |
+                                          | Has host X Expired? |
+                                          |_____________________|
+                                                     |
+                                                     | Yes
+     _______________                       __________|___________                   ___________
+    |               |               No    |                      |      Yes        |           |
+    |  De-Authorize | <------------------=| Is connection active |=--------------> | Renew TTL |
+    |_______________|                     |______________________|                 |___________|
+                                                     |
+                                                     | 
+                                                     |
+     ___________                                     |
+    |           |    Get Active Connections          |
+    | Conntrack |=---------------------------------> |
+    |___________|
+```
+
 ## Build
 
 To build NetTrust, simply issue:
@@ -103,6 +139,64 @@ To run NetTrust, issue `./nettrust  -fwd-addr "someIP:53" -listen-addr "127.0.0.
 
 - listen-addr is the listening address that NetTrust will listen and forward dns queries
 - fwd-addr is the address of the DNS Server that NetTrust will use to resolve queries
+
+Example output
+
+```bash
+INFO[2022-02-12T20:40:16+02:00] Starting UDP DNS Server                       Component="DNS Server" Stage=Init
+INFO[2022-02-12T20:40:16+02:00] Starting TCP DNS Server                       Component="DNS Server" Stage=Init
+INFO[2022-02-12T20:40:16+02:00] Starting                                      Component="[UDP] DNSServer" Stage=Init
+INFO[2022-02-12T20:40:16+02:00] Starging                                      Component="[TCP] DNSServer" Stage=Init
+# Some time later
+INFO[2022-02-12T20:41:02+02:00] [Blocked] Question: example.com.   Component=Firewall Stage=Authorizer
+INFO[2022-02-12T20:41:02+02:00] [Not Handled] Question: example.com.federation.local. - Is this local?  Component=Firewall Stage=Authorizer
+INFO[2022-02-12T20:41:14+02:00] [PTR] Question: 247.1.168.192.in-addr.arpa. resolved to arph.federation.local.  Component=Firewall Stage=Authorizer
+INFO[2022-02-12T20:41:36+02:00] [Blocked] Question: api.removedButWasSomeDomainHere.         Component=Firewall Stage=Authorizer
+INFO[2022-02-12T20:41:37+02:00] [Blocked] Question: api.removedButWasSomeDomainHere.         Component=Firewall Stage=Authorizer
+INFO[2022-02-12T20:41:38+02:00] [Blocked] Question: api.removedButWasSomeDomainHere.         Component=Firewall Stage=Authorizer
+INFO[2022-02-12T20:41:41+02:00] [Blocked] Question: api.removedButWasSomeDomainHere.         Component=Firewall Stage=Authorizer
+INFO[2022-02-12T20:41:49+02:00] [Blocked] Question: api.removedButWasSomeDomainHere.         Component=Firewall Stage=Authorizer
+# Some time later when I did a git push
+INFO[2022-02-12T21:19:30+02:00] [Authorized] Question: github.com. Hosts: [140.82.121.4]  Component=Firewall Stage=Authorizer
+# Some time later when I did a git fetch
+INFO[2022-02-12T21:41:54+02:00] [Already Authorized] Question: github.com. Host: 140.82.121.3  Component=Firewall Stage=Authorizer
+```
+
+The nftables authorized hosts set now looks like this
+
+```bash
+table ip net-trust {
+	set whitelist {
+		type ipv4_addr
+		elements = { 127.0.0.1, 192.168.178.21 }
+	}
+
+	set authorized {
+		type ipv4_addr
+		elements = { xyz.xyz.xyz.xyz, xyz.xyz.xyz.xyz,
+			     xyz.xyz.xyz.xyz, xyz.xyz.xyz.xyz,
+			     xyz.xyz.xyz.xyz, xyz.xyz.xyz.xyz,
+			     xyz.xyz.xyz.xyz, xyz.xyz.xyz.xyz,
+			     xyz.xyz.xyz.xyz, xyz.xyz.xyz.xyz,
+			     xyz.xyz.xyz.xyz, xyz.xyz.xyz.xyz,
+			     xyz.xyz.xyz.xyz, 140.82.121.3 }
+	}
+
+	chain authorized-output {
+		type filter hook output priority filter; policy drop;
+		ip daddr 127.0.0.0/8 counter packets 563 bytes 48587 accept
+		ip daddr 10.0.0.0/8 counter packets 0 bytes 0 accept
+		ip daddr 172.16.0.0/12 counter packets 0 bytes 0 accept
+		ip daddr 192.168.0.0/16 counter packets 273 bytes 20402 accept
+		ip daddr 100.64.0.0/10 counter packets 0 bytes 0 accept
+		ip daddr @whitelist accept
+		ip daddr @authorized accept
+		counter packets 23 bytes 2637 reject with icmp type net-unreachable
+	}
+}
+```
+
+Check options below for additional configuration
 
 ### NetTrust options
 
