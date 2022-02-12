@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/miekg/dns"
@@ -20,11 +21,13 @@ type Server struct {
 	sync.Mutex
 
 	listenAddr, fwdAddr, fwdProto string
-	fwdTLS                        bool
+	fwdTLS, sigOnce               bool
 	logger                        *logrus.Logger
 	fwdl                          *logrus.Entry
 	client                        *dns.Client
 	udpServer, tcpServer          *dns.Server
+	cancelOnErr                   context.CancelFunc
+	ctxOnErr                      context.Context
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
@@ -83,6 +86,8 @@ func NewDNSServer(laddr, faddr, fwdProto, cacert string, fwdTLS bool, logger *lo
 		"Stage":     "Forward",
 	})
 
+	server.ctxOnErr, server.cancelOnErr = context.WithCancel(context.Background())
+
 	return server, nil
 }
 
@@ -105,6 +110,22 @@ func loadCaCert(ca string) (*x509.CertPool, error) {
 	certPool.AppendCertsFromPEM(data)
 
 	return certPool, nil
+}
+
+func (s *Server) killOnErr() {
+	if s.sigOnce {
+		return
+	}
+
+	s.Lock()
+	s.sigOnce = true
+	s.Unlock()
+
+	s.fwdl.Error("nettrust is shutting down, sending SIGINT")
+	err := syscall.Kill(syscall.Getegid(), syscall.SIGINT)
+	if err != nil {
+		s.fwdl.Error(err)
+	}
 }
 
 // ServiceContext for canceling goroutins
@@ -162,7 +183,7 @@ func (s *Server) UDPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 	}(&serviceListenerWG, s.udpServer)
 
 	serviceListenerWG.Add(1)
-	go func(ctx context.Context, wg *sync.WaitGroup, srv *dns.Server) {
+	go func(ctx, ctxOnErr context.Context, wg *sync.WaitGroup, srv *dns.Server) {
 		l := s.logger.WithFields(logrus.Fields{
 			"Component": "[UDP] DNSServer",
 			"Stage":     "Term",
@@ -177,11 +198,13 @@ func (s *Server) UDPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 				l.Info("Bye!")
 				wg.Done()
 				return
+			case <-ctxOnErr.Done():
+				s.killOnErr()
 			default:
 				time.Sleep(time.Millisecond * 50)
 			}
 		}
-	}(ctxListener, &serviceListenerWG, s.udpServer)
+	}(ctxListener, s.ctxOnErr, &serviceListenerWG, s.udpServer)
 
 	return dnsServerContext
 }
@@ -225,7 +248,7 @@ func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 	}(&serviceListenerWG, s.tcpServer)
 
 	serviceListenerWG.Add(1)
-	go func(ctx context.Context, wg *sync.WaitGroup, srv *dns.Server) {
+	go func(ctx, ctxOnErr context.Context, wg *sync.WaitGroup, srv *dns.Server) {
 		l := s.logger.WithFields(logrus.Fields{
 			"Component": "[TCP] DNSServer",
 			"Stage":     "Term",
@@ -239,11 +262,13 @@ func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 				l.Info("Bye!")
 				wg.Done()
 				return
+			case <-ctxOnErr.Done():
+				s.killOnErr()
 			default:
 				time.Sleep(time.Millisecond * 50)
 			}
 		}
-	}(ctxListener, &serviceListenerWG, s.tcpServer)
+	}(ctxListener, s.ctxOnErr, &serviceListenerWG, s.tcpServer)
 
 	return dnsServerContext
 }
@@ -251,29 +276,35 @@ func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) error) {
 	if len(req.Question) == 0 {
 		dns.HandleFailed(w, req)
-		s.qe(w, req, fmt.Errorf(ErrQuery))
+		s.qErr(w, req, fmt.Errorf(ErrQuery))
 		return
 	}
 
 	resp, _, err := s.client.Exchange(req, s.fwdAddr)
 	if err != nil {
-		s.qe(w, req, err)
+		s.qFatal(w, req, err)
 		return
 	}
 
 	err = fn(resp)
 	if err != nil {
-		s.qe(w, req, err)
+		s.qErr(w, req, err)
 		return
 	}
 
 	err = w.WriteMsg(resp)
 	if err != nil {
-		s.qe(w, req, err)
+		s.qErr(w, req, err)
 	}
 }
 
-func (s *Server) qe(w dns.ResponseWriter, req *dns.Msg, err error) {
+func (s *Server) qErr(w dns.ResponseWriter, req *dns.Msg, err error) {
 	s.fwdl.Error(err)
 	dns.HandleFailed(w, req)
+}
+
+func (s *Server) qFatal(w dns.ResponseWriter, req *dns.Msg, err error) {
+	s.fwdl.Error(err)
+	dns.HandleFailed(w, req)
+	s.cancelOnErr()
 }

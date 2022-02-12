@@ -1,4 +1,4 @@
-package firewall
+package authorizer
 
 import (
 	"fmt"
@@ -8,9 +8,9 @@ import (
 	"github.com/miekg/dns"
 )
 
-func (f *Firewall) HandleRequest(resp *dns.Msg) error {
-	if f.Cache == nil {
-		return fmt.Errorf(ErrNilFW)
+func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
+	if f.cache == nil {
+		return fmt.Errorf(ErrNil)
 	}
 
 	dnsQuestions := []string{}
@@ -49,14 +49,14 @@ func (f *Firewall) HandleRequest(resp *dns.Msg) error {
 				continue
 			}
 
-			regOK := f.Cache.Register(r.A.String())
+			regOK := f.cache.Register(r.A.String())
 			if !regOK {
-				f.Cache.Renew(r.A.String())
+				f.cache.Renew(r.A.String())
 				f.fwl.Infof("[Already Authorized] %s Host: %s", strings.Join(dnsQuestions, " "), r.A.String())
 				continue
 			}
 
-			err = f.AddIPv4ToSetRule(f.authorizedSet, r.A.String())
+			err = f.fw.AddIPv4ToSetRule(f.authorizedSet, r.A.String())
 			if err != nil {
 				f.fwl.Error(err)
 				continue
@@ -72,13 +72,15 @@ func (f *Firewall) HandleRequest(resp *dns.Msg) error {
 			if r.AAAA.String() == "0.0.0.0" {
 				continue
 			}
+		} else if r, ok := answer.(*dns.PTR); ok {
+			f.fwl.Infof("[PTR] %s resolved to %s", strings.Join(dnsQuestions, " "), r.Ptr)
 		}
 	}
 
 	return nil
 }
 
-func (f *Firewall) checkBlacklist(ip string) (bool, error) {
+func (f *Authorizer) checkBlacklist(ip string) (bool, error) {
 	// unsafe function, we are not checking string input for valid
 	// ip address. We should add a check here
 	for _, j := range f.blacklistHosts {

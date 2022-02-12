@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/sirupsen/logrus"
+	"github.com/ulfox/nettrust/authorizer"
 	"github.com/ulfox/nettrust/dns"
 	"github.com/ulfox/nettrust/firewall"
 
@@ -28,7 +29,7 @@ func main() {
 
 	log := logger.WithFields(logrus.Fields{
 		"Component": "NetTrust",
-		"Stage":     "Initializing",
+		"Stage":     "main",
 	})
 
 	// Read Nettrust environment and config
@@ -59,9 +60,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fw.SetBlacklists(config.Blacklist.Hosts, config.Blacklist.Hosts)
 
-	fwContext, err := fw.TTLCacheChecker(config.AuthorizedTTL, config.TTLCheckTicker, authorizedSet)
+	authorizer, cacheContext, err := authorizer.NewAuthorizer(config.AuthorizedTTL, config.TTLCheckTicker, authorizedSet, config.Blacklist.Hosts, config.Blacklist.Networks, fw, logger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,8 +74,8 @@ func main() {
 	}
 
 	// Init DNS Servers
-	udpDNSServerContext := dnsServer.UDPListenBackground(fw.HandleRequest)
-	tcpDNSServerContext := dnsServer.TCPListenBackground(fw.HandleRequest)
+	udpDNSServerContext := dnsServer.UDPListenBackground(authorizer.HandleRequest)
+	tcpDNSServerContext := dnsServer.TCPListenBackground(authorizer.HandleRequest)
 
 	sysSigs := utils.NewOSSignal()
 
@@ -88,8 +88,8 @@ func main() {
 	udpDNSServerContext.Wait()
 	tcpDNSServerContext.Wait()
 
-	fwContext.Expire()
-	fwContext.Wait()
+	cacheContext.Expire()
+	cacheContext.Wait()
 }
 
 func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
