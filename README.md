@@ -109,18 +109,31 @@ To run NetTrust, issue `./nettrust  -fwd-addr "someIP:53" -listen-addr "127.0.0.
 NetTrust accepts the follwoing options
 
 ```bash
+Usage of ./bin/nettrust:
+  -authorized-ttl int
+    	Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)
+  -config string
+    	Path to config.json (default "config.json")
+  -do-not-flush-table
+    	Do not clean up tables when NetTrust exists. Use this flag if you want to deny communication when NetTrust has exited
   -firewall-type string
-    	NetTrust firewall type (nftables is only supported for now) (default "nftables")
+    	NetTrust firewall type (nftables is only supported for now)
   -fwd-addr string
     	NetTrust forward dns address
+  -fwd-proto string
+    	NetTrust dns forward protocol
+  -fwd-tls
+    	Enable DoT. This expects that forward dns address supports DoT and fwd-proto is tcp
+  -fwd-tls-cert string
+    	path to certificate that will be used to validate forward dns hostname
   -listen-addr string
     	NetTrust listen dns address
+  -ttl-check-ticker int
+    	How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)
   -whitelist-loopback
-    	Loopback network space 127.0.0.0/8 will be whitelisted (default true)
+    	Loopback network space 127.0.0.0/8 will be whitelisted (default true) (default true)
   -whitelist-private
     	If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true)
-  -authorized-ttl int
-    	Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire) (default -1)
 ```
 
 ### NetTrust ENV/Config whitelist / blacklist

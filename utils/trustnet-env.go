@@ -42,17 +42,18 @@ func GetNetTrustEnv() (*NetTrust, error) {
 	fwdAddr := flag.String("fwd-addr", "", "NetTrust forward dns address")
 	fwdProto := flag.String("fwd-proto", "", "NetTrust dns forward protocol")
 	fwdTLS := flag.Bool("fwd-tls", false, "Enable DoT. This expects that forward dns address supports DoT and fwd-proto is tcp")
-	fwdTLSCert := flag.String("fwd-tls-cert", "", "path to certificate that will be used to validate forward dns hostname")
+	fwdTLSCert := flag.String("fwd-tls-cert", "", "path to certificate that will be used to validate forward dns hostname. If you do not set this, the the host root CAs will be used")
 	listenAddr := flag.String("listen-addr", "", "NetTrust listen dns address")
 	firewallType := flag.String("firewall-type", "", "NetTrust firewall type (nftables is only supported for now)")
 	whitelistLoopback := flag.Bool("whitelist-loopback", true, "Loopback network space 127.0.0.0/8 will be whitelisted (default true)")
-	whitelistPrivate := flag.Bool("whitelist-private", true, "If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted")
+	whitelistPrivate := flag.Bool("whitelist-private", true, "If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true)")
 	authorizedTTL := flag.Int("authorized-ttl", 0, "Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)")
 	ttlCheckTicker := flag.Int("ttl-check-ticker", 0, "How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)")
-	fileCFG := flag.String("config", "config.json", "Path to config.json")
+	fileCFG := flag.String("config", "", "Path to config.json")
 	flag.Parse()
 
 	var key string
+	var err error
 	env := make(map[string]string)
 	osEnviron := os.Environ()
 	NetTrustPrefix := "NET_TRUST_"
@@ -68,18 +69,20 @@ func GetNetTrustEnv() (*NetTrust, error) {
 
 	config := &NetTrust{}
 
-	err := fileExists(*fileCFG)
-	if err != nil {
-		return nil, err
-	}
+	if *fileCFG != "" {
+		err := fileExists(*fileCFG)
+		if err != nil {
+			return nil, err
+		}
 
-	body, err := ioutil.ReadFile(*fileCFG)
-	if err != nil {
-		return nil, err
-	}
+		body, err := ioutil.ReadFile(*fileCFG)
+		if err != nil {
+			return nil, err
+		}
 
-	if err := json.Unmarshal(body, config); err != nil {
-		return nil, err
+		if err := json.Unmarshal(body, config); err != nil {
+			return nil, err
+		}
 	}
 
 	config.Env = env
