@@ -99,7 +99,7 @@ To build NetTrust, simply issue:
 
 Note: NetTrust needs to interact Netfilter, for that, it requires root access
 
-To run NetTrust, issue `./nettrust  -fwd-addr "someIP:53" -listen-addr "127.0.0.1:53"`
+To run NetTrust, issue `./nettrust  -fwd-addr "someIP:53" -listen-addr "127.0.0.1:53 -config config.json"`
 
 - listen-addr is the listening address that NetTrust will listen and forward dns queries
 - fwd-addr is the address of the DNS Server that NetTrust will use to resolve queries
@@ -136,6 +136,51 @@ Usage of ./bin/nettrust:
     	If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true)
 ```
 
+#### Config options
+
+You can also use a json config to set options.
+
+```json
+{
+    "whitelist": {
+        "networks": [],
+        "hosts": []
+    },
+    "blacklist": {
+        "networks": [],
+        "hosts": []
+    },
+    "fwdAddr": "192.168.178.21:53", // Example address of local dns server
+    "fwdProto": "udp",
+    "fwdCaCert": "",
+    "fwdTLS": false,
+
+    "listenAddr": "127.0.0.1:53",
+    "firewallType": "nftables",
+
+    "whitelistLoEnabled": true,
+    "whitelistPrivateEnabled": true,
+    "ttl": -1,
+    "ttlInterval": 30,
+    "doNotFlushTable": false // Set this to true if you want to keep the rules and the chain when NetTrust has stopped
+}
+```
+
+**Note**: Config file options have lower priority from flag options. For example, if you start NetTrust with `-fwd-tls` and you set `fwdTLS: false` in the config, NetTrust will use tls since flags have the highest priority 
+
+##### Do Not Flush Table on Exit
+
+**Note**: As you can imagine, with this option set to true, you will not be able to access any host that is not part of a whitelisted option (hosts, networks). If you enabled this option and you wish to revert back, simply start NetTrust again with this option set to false and then exit
+
+If you wish to keep the table's content on NetTrust exit, then pass either `-do-not-flush-table` via flags or `doNotFlushTable: true` via config. NetTrust on exit will clear only the authorized set, that is the set that is populated via resolved hosts.
+
+It will keep:
+
+- The chain with the default policy to drop
+- The whitelisted hosts
+- The whitelisted networks
+- Final reject verdict
+
 ### NetTrust ENV/Config whitelist / blacklist
 
 Note: Whitelisting, blacklisting should be done automatically via DNS proxy. This option should be used if you want to add custom entries
@@ -167,8 +212,6 @@ Note: blacklisting via env is not yet supported. Check config section in the nex
 
 Use `config.json` to whitelist or blacklist hosts and networks
 
-Note: This is expected to be in the root directory that hosts NetTrust binary
-
 ```bash
 {
     "whitelist": {
@@ -181,6 +224,9 @@ Note: This is expected to be in the root directory that hosts NetTrust binary
     }
 }
 ```
+
+Blacklisting instructs NetTrust to skip hosts that match the hostlist or are part of the network. Skipping is essentially blackist since chain's tailing policy is reject and chain's default policy is drop
+
 
 ### NFTables chain overview
 
@@ -218,3 +264,54 @@ table ip net-trust {
 
 As you may have noticed, there is no blacklist entry in the chain or in any set. This is because NetTrust uses deny all except firewall implementation. Blacklists are all hosts that are not resolved by the DNS Authority and the hosts added manually via the config file or env vars. The blacklisting is taking place in the DNS Proxy handler, there we check any returned results by the DNS Authority and skip them if they match a blacklist rule
 
+#### NFTables clean ruleset manually
+
+If you need to remove NetTrust rules and chains manually, then please follow this section
+
+##### Remove rule
+
+To remove a rule, first get the rule's handle number
+
+```bash
+sudo nft list table net-trust -a
+```
+
+```bash
+table ip net-trust { # handle 5
+	set whitelist { # handle 7
+		type ipv4_addr
+		elements = { 127.0.0.1, 192.168.178.21 }
+	}
+
+	set authorized { # handle 9
+		type ipv4_addr
+		elements = { 140.82.121.4 }
+	}
+
+	chain authorized-output { # handle 129
+		type filter hook output priority filter; policy drop;
+		ip daddr 127.0.0.0/8 counter packets 2174 bytes 196333 accept # handle 130
+		ip daddr 10.0.0.0/8 counter packets 0 bytes 0 accept # handle 131
+		ip daddr 172.16.0.0/12 counter packets 0 bytes 0 accept # handle 132
+		ip daddr 192.168.0.0/16 counter packets 105 bytes 8793 accept # handle 133
+		ip daddr 100.64.0.0/10 counter packets 0 bytes 0 accept # handle 134
+		ip daddr @whitelist accept # handle 135
+		ip daddr @authorized accept # handle 136
+		counter packets 90 bytes 8380 reject with icmp type net-unreachable # handle 137
+	}
+}
+```
+
+To remove rule `ip daddr 100.64.0.0/10 counter packets 0 bytes 0 accept # handle 134` as an example, issue
+
+```bash
+sudo nft delete rule net-trust authorized-output handle 134
+```
+
+##### Remove all rules from all chains in the table
+
+To remove all rules from all chains, issue
+
+```bash
+sudo nft 'flush table net-trust'
+```
