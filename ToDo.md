@@ -3,9 +3,13 @@
 ## Improvements
 
 - Check chains priority and ensure NetTrust Chain has high priority in the related table
+- Remove default reject when nettrust is shutdown or provide option to remove it with a flag
+- Add Readme info for checking and removing chain rules manually via nftables command
 
 ## Features
 
+- DNS listen strikes on many invalid/block requests
+- Conntrack Hosts & ttl metrics
 - Handle IPv6 also
 - Add support for reverse queries, essentially whitelisting IPs if the DNS Authorizer returns a domain back to NetTrust
 - Add NAT Filtering to allow NetTrust to as an intermediate (GW) server. Currently NetTrust filters only OUTPUT Hook from the Filtering table. NAT/PREROUTING should also be available soon
