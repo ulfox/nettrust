@@ -3,7 +3,6 @@
 ## Improvements
 
 - Check chains priority and ensure NetTrust Chain has high priority in the related table
-- Move authorizer.go under firewall package
 
 ## Features
 
@@ -13,7 +12,6 @@
 - Add metrics capabilities to monitor NetTrust
 - Add network statistics (e.g. how many times a host was queried) to allow alerts/notifications on certain events
 - Add DNSSec
-- Add DOT (maybe consider also DOH)
 - Add IPv6 Filtering
 - Add IPTables Support (iptables-legacy, iptables-nft)
 - Add option to use a KV store for keeping host tracking information
