@@ -107,7 +107,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 		}
 	}
 
-	for _, v := range config.WhiteListPrivate {
+	for _, v := range config.WhitelistPrivate {
 		err = utils.CheckIPV4Network(v)
 		if err != nil {
 			return err

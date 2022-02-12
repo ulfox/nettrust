@@ -18,4 +18,6 @@ nettrust
 tests
 Makefile
 packages
+dns.pem
+dns.key
 

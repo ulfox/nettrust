@@ -19,26 +19,34 @@ type NetTrust struct {
 		Networks []string `json:"networks"`
 		Hosts    []string `json:"hosts"`
 	} `json:"blacklist"`
-	Env                                                    map[string]string
-	FWDAddr, ListenAddr, FirewallType, FWDProto, FWDCaCert string
-	WhitelistLo, WhiteListPrivate                          []string
-	AuthorizedTTL, TTLCheckTicker                          int
-	FWDTLS                                                 bool
+	Env                     map[string]string
+	FWDAddr                 string `json:"fwdAddr"`
+	FWDProto                string `json:"fwdProto"`
+	FWDTLS                  bool   `json:"fwdTLS"`
+	FWDCaCert               string `json:"fwdCaCert"`
+	ListenAddr              string `json:"listenAddr"`
+	FirewallType            string `json:"firewallType"`
+	whitelistLoEnabled      bool   `json:"whitelistLoEnabled"`
+	WhitelistPrivateEnabled bool   `json:"whitelistPrivateEnabled"`
+	WhitelistLo             []string
+	WhitelistPrivate        []string
+	AuthorizedTTL           int `json:"ttl"`
+	TTLCheckTicker          int `json:"ttlInterval"`
 }
 
 // GetADHoleEnv will read environ and create a map of k:v from envs
 // that have a NET_TRUST prefix. The prefix is removed
 func GetNetTrustEnv() (*NetTrust, error) {
 	fwdAddr := flag.String("fwd-addr", "", "NetTrust forward dns address")
-	fwdProto := flag.String("fwd-proto", "udp", "NetTrust dns forward protocol")
+	fwdProto := flag.String("fwd-proto", "", "NetTrust dns forward protocol")
 	fwdTLS := flag.Bool("fwd-tls", false, "Enable DoT. This expects that forward dns address supports DoT and fwd-proto is tcp")
 	fwdTLSCert := flag.String("fwd-tls-cert", "", "path to certificate that will be used to validate forward dns hostname")
 	listenAddr := flag.String("listen-addr", "", "NetTrust listen dns address")
-	firewallType := flag.String("firewall-type", "nftables", "NetTrust firewall type (nftables is only supported for now)")
+	firewallType := flag.String("firewall-type", "", "NetTrust firewall type (nftables is only supported for now)")
 	whitelistLoopback := flag.Bool("whitelist-loopback", true, "Loopback network space 127.0.0.0/8 will be whitelisted (default true)")
 	whitelistPrivate := flag.Bool("whitelist-private", true, "If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted")
-	authorizedTTL := flag.Int("authorized-ttl", -1, "Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)")
-	ttlCheckTicker := flag.Int("ttl-check-ticker", 30, "How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)")
+	authorizedTTL := flag.Int("authorized-ttl", 0, "Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)")
+	ttlCheckTicker := flag.Int("ttl-check-ticker", 0, "How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)")
 	fileCFG := flag.String("config", "config.json", "Path to config.json")
 	flag.Parse()
 
@@ -72,27 +80,63 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		return nil, err
 	}
 
-	if *fwdTLS && *fwdTLSCert != "" {
+	config.Env = env
+
+	if *fwdAddr != "" {
+		config.FWDAddr = *fwdAddr
+	}
+
+	if *fwdProto == "" && config.FWDProto == "" {
+		config.FWDProto = "udp"
+	} else if *fwdProto != "" {
+		config.FWDProto = *fwdProto
+	}
+
+	if *fwdTLS {
+		config.FWDTLS = *fwdTLS
+	}
+
+	if *fwdTLSCert != "" {
+		config.FWDCaCert = *fwdTLSCert
+	}
+
+	if config.FWDTLS && config.FWDCaCert != "" {
 		err = fileExists(*fwdTLSCert)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	config.Env = env
-	config.FWDAddr = *fwdAddr
-	config.ListenAddr = *listenAddr
-	config.FirewallType = *firewallType
-	config.AuthorizedTTL = *authorizedTTL
-	config.FWDProto = *fwdProto
-	config.TTLCheckTicker = *ttlCheckTicker
-	config.FWDTLS = *fwdTLS
-	config.FWDCaCert = *fwdTLSCert
-	if *whitelistLoopback {
-		config.WhitelistLo = []string{"127.0.0.0/8"}
+	if *listenAddr != "" {
+		config.ListenAddr = *listenAddr
 	}
-	if *whitelistPrivate {
-		config.WhiteListPrivate = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"}
+
+	if config.ListenAddr == config.FWDAddr {
+		return nil, fmt.Errorf("listen address can not be the same as forward address")
+	}
+
+	if *firewallType == "" && config.FirewallType == "" {
+		config.FirewallType = "nftables"
+	} else if *firewallType != "" {
+		config.FirewallType = *firewallType
+	}
+
+	if *authorizedTTL == 0 && config.AuthorizedTTL == 0 {
+		config.AuthorizedTTL = -1
+	} else if *authorizedTTL != 0 {
+		config.AuthorizedTTL = *authorizedTTL
+	}
+
+	if *ttlCheckTicker == 0 && config.TTLCheckTicker == 0 {
+		config.TTLCheckTicker = 30
+	} else if *ttlCheckTicker != 0 {
+		config.TTLCheckTicker = *ttlCheckTicker
+	}
+
+	if *whitelistLoopback || config.whitelistLoEnabled {
+		config.WhitelistLo = []string{"127.0.0.0/8"}
+	} else if *whitelistPrivate || config.WhitelistPrivateEnabled {
+		config.WhitelistPrivate = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"}
 	}
 
 	return config, nil

@@ -6,5 +6,17 @@
     "blacklist": {
         "networks": [],
         "hosts": []
-    }
+    },
+    "fwdAddr": "",
+    "fwdProto": "udp",
+    "fwdCaCert": "",
+    "fwdTLS": false,
+
+    "listenAddr": "127.0.0.1:53",
+    "firewallType": "nftables",
+
+    "whitelistLoEnabled": true,
+    "whitelistPrivateEnabled": true,
+    "ttl": -1,
+    "ttlInterval": 30
 }
