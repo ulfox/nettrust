@@ -65,6 +65,26 @@ func main() {
 		log.Fatal(err)
 	}
 
+	for k, v := range config.Env {
+		if strings.HasPrefix(k, "blacklist.networks") {
+			err = utils.CheckIPV4Network(v)
+			if err != nil {
+				log.Fatal(err)
+			}
+			config.Blacklist.Networks = append(config.Blacklist.Networks, v)
+		}
+	}
+
+	for k, v := range config.Env {
+		if strings.HasPrefix(k, "blacklist.hosts") {
+			err = utils.CheckIPV4Addresses(v)
+			if err != nil {
+				log.Fatal(err)
+			}
+			config.Blacklist.Hosts = append(config.Blacklist.Hosts, v)
+		}
+	}
+
 	authorizer, cacheContext, err := authorizer.NewAuthorizer(config.AuthorizedTTL, config.TTLCheckTicker, authorizedSet, config.Blacklist.Hosts, config.Blacklist.Networks, fw, logger)
 	if err != nil {
 		log.Fatal(err)
