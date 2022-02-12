@@ -18,5 +18,6 @@
     "whitelistLoEnabled": true,
     "whitelistPrivateEnabled": true,
     "ttl": -1,
-    "ttlInterval": 30
+    "ttlInterval": 30,
+    "doNotFlushTable": false
 }

@@ -42,6 +42,10 @@ func main() {
 		logger.SetLevel(logrus.DebugLevel)
 	}
 
+	if !config.DoNotFlushTable {
+		log.Warn("on exit flush table is enabled. Please set this to false if you wish to deny traffic to all if NetTrust is not running")
+	}
+
 	// DNS Server
 	dnsServer, err := dns.NewDNSServer(
 		config.ListenAddr,
@@ -90,6 +94,19 @@ func main() {
 
 	cacheContext.Expire()
 	cacheContext.Wait()
+
+	if !config.DoNotFlushTable {
+		log.Info("flush table is enabled, flushing ...")
+		err = fw.FlushTable()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		err = fw.DeleteChain()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
 }
 
 func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {

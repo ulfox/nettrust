@@ -20,6 +20,7 @@ type NetTrust struct {
 		Hosts    []string `json:"hosts"`
 	} `json:"blacklist"`
 	Env                     map[string]string
+	DoNotFlushTable         bool   `json:"doNotFlushTable"`
 	FWDAddr                 string `json:"fwdAddr"`
 	FWDProto                string `json:"fwdProto"`
 	FWDTLS                  bool   `json:"fwdTLS"`
@@ -37,6 +38,7 @@ type NetTrust struct {
 // GetADHoleEnv will read environ and create a map of k:v from envs
 // that have a NET_TRUST prefix. The prefix is removed
 func GetNetTrustEnv() (*NetTrust, error) {
+	doNotFlushTable := flag.Bool("do-not-flush-table", false, "Do not clean up tables when NetTrust exists. Use this flag if you want to deny communication when NetTrust has exited")
 	fwdAddr := flag.String("fwd-addr", "", "NetTrust forward dns address")
 	fwdProto := flag.String("fwd-proto", "", "NetTrust dns forward protocol")
 	fwdTLS := flag.Bool("fwd-tls", false, "Enable DoT. This expects that forward dns address supports DoT and fwd-proto is tcp")
@@ -81,6 +83,10 @@ func GetNetTrustEnv() (*NetTrust, error) {
 	}
 
 	config.Env = env
+
+	if *doNotFlushTable {
+		config.DoNotFlushTable = *doNotFlushTable
+	}
 
 	if *fwdAddr != "" {
 		config.FWDAddr = *fwdAddr
@@ -135,7 +141,9 @@ func GetNetTrustEnv() (*NetTrust, error) {
 
 	if *whitelistLoopback || config.WhitelistLoEnabled {
 		config.WhitelistLo = []string{"127.0.0.0/8"}
-	} else if *whitelistPrivate || config.WhitelistPrivateEnabled {
+	}
+
+	if *whitelistPrivate || config.WhitelistPrivateEnabled {
 		config.WhitelistPrivate = []string{"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "100.64.0.0/10"}
 	}
 

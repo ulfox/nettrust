@@ -19,6 +19,8 @@ type FirewallBackend interface {
 	AddIPv4ToSetRule(n, ip string) error
 	DeleteIPv4FromSetRule(n, ip string) error
 	AddRejectVerdict() error
+	FlushTable() error
+	DeleteChain() error
 }
 
 // Firewall for managing firewall rules

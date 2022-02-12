@@ -174,3 +174,25 @@ func (f *FirewallBackend) AddRejectVerdict() error {
 	})
 	return f.nft.Flush()
 }
+
+// Remove rules from chain. This will leave the chain with the defined policy
+// If the policy is drop, we should run DeleteChain also if we want the host
+// to be able to do network communication
+func (f *FirewallBackend) FlushTable() error {
+	f.Lock()
+	defer f.Unlock()
+	f.nft.FlushTable(f.table)
+
+	return f.nft.Flush()
+}
+
+// Delete chain from the table. By removing the chain we allow all communication
+// if no other rules are set by external tools
+func (f *FirewallBackend) DeleteChain() error {
+	f.Lock()
+	defer f.Unlock()
+
+	f.nft.DelChain(f.chain)
+
+	return f.nft.Flush()
+}

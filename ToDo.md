@@ -3,7 +3,6 @@
 ## Improvements
 
 - Check chains priority and ensure NetTrust Chain has high priority in the related table
-- Remove default reject when nettrust is shutdown or provide option to remove it with a flag
 - Add Readme info for checking and removing chain rules manually via nftables command
 
 ## Features
