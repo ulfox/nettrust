@@ -224,12 +224,18 @@ Usage of ./bin/nettrust:
     	path to certificate that will be used to validate forward dns hostname. If you do not set this, the the host root CAs will be used
   -listen-addr string
     	NetTrust listen dns address
+  -listen-cert string
+    	path to certificate that will be used by the TCP DNS Service to serve DoT
+  -listen-cert-key string
+    	path to the private key that will be used by the TCP DNS Service to serve DoT
+  -listen-tls
+    	Enable tls listener, tls listener works only with the TCP DNS Service, UDP will continue to serve in plaintext mode
   -ttl-check-ticker int
     	How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)
   -whitelist-loopback
-    	Loopback network space 127.0.0.0/8 will be whitelisted (default true) (default true)
+    	Loopback network space 127.0.0.0/8 will be whitelisted (default true)
   -whitelist-private
-    	If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true) (default true)
+    	If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true)
 ```
 
 #### Config options
