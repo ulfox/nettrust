@@ -28,7 +28,7 @@ func (f *ServiceContext) Wait() {
 // ttlCacheChecker spawns a goroutine for checking cache for authorized hosts with expired ttl
 func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 	if f.fwl == nil {
-		return nil, fmt.Errorf(ErrNil)
+		return nil, fmt.Errorf(errNil)
 	}
 
 	firewallCacheContext := &ServiceContext{}

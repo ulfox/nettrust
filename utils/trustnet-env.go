@@ -39,7 +39,7 @@ type NetTrust struct {
 	TTLCheckTicker            int `json:"ttlInterval"`
 }
 
-// GetADHoleEnv will read environ and create a map of k:v from envs
+// GetNetTrustEnv will read environ and create a map of k:v from envs
 // that have a NET_TRUST prefix. The prefix is removed
 func GetNetTrustEnv() (*NetTrust, error) {
 	doNotFlushTable := flag.Bool(
@@ -178,10 +178,10 @@ func GetNetTrustEnv() (*NetTrust, error) {
 
 	if config.ListenTLS {
 		if config.ListenCert == "" {
-			return nil, fmt.Errorf(ErrListenTLSNoFile, "certificate")
+			return nil, fmt.Errorf(errListenTLSNoFile, "certificate")
 		}
 		if config.ListenCertKey == "" {
-			return nil, fmt.Errorf(ErrListenTLSNoFile, "private key")
+			return nil, fmt.Errorf(errListenTLSNoFile, "private key")
 		}
 		err = fileExists(config.ListenCert)
 		if err != nil {
@@ -194,7 +194,7 @@ func GetNetTrustEnv() (*NetTrust, error) {
 	}
 
 	if config.ListenAddr == config.FWDAddr {
-		return nil, fmt.Errorf(ErrSameAddr)
+		return nil, fmt.Errorf(errSameAddr)
 	}
 
 	if *firewallType == "" && config.FirewallType == "" {

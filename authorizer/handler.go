@@ -8,9 +8,10 @@ import (
 	"github.com/miekg/dns"
 )
 
+// HandleRequest for filtering dns respone requests
 func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
 	if f.cache == nil {
-		return fmt.Errorf(ErrNil)
+		return fmt.Errorf(errNil)
 	}
 
 	dnsQuestions := []string{}

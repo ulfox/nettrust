@@ -34,15 +34,15 @@ type Server struct {
 // NewDNSServer for creating a new NetTrust DNS Server proxy
 func NewDNSServer(laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCert string, listenTLS, fwdTLS bool, logger *logrus.Logger) (*Server, error) {
 	if laddr == "" || faddr == "" {
-		return nil, fmt.Errorf(ErrFWDNSAddr)
+		return nil, fmt.Errorf(errFWDNSAddr)
 	}
 
 	if fwdTLS && fwdProto != "tcp" {
-		return nil, fmt.Errorf(ErrFWDTLS)
+		return nil, fmt.Errorf(errFWDTLS)
 	}
 
 	if fwdProto != "udp" && fwdProto != "tcp" {
-		return nil, fmt.Errorf(ErrFWDNSProto)
+		return nil, fmt.Errorf(errFWDNSProto)
 	}
 
 	host, port, err := net.SplitHostPort(faddr)
@@ -51,11 +51,11 @@ func NewDNSServer(laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCer
 	}
 
 	if host == "" || port == "" {
-		return nil, fmt.Errorf(ErrFWDNSAddrInvalid, host, port)
+		return nil, fmt.Errorf(errFWDNSAddrInvalid, host, port)
 	}
 
 	if fwdTLS && port == "53" {
-		logger.Warn(WarnFWDTLSPort)
+		logger.Warn(warnFWDTLSPort)
 	}
 
 	client := &dns.Client{Net: fwdProto}
@@ -108,7 +108,7 @@ func loadClientCaCert(ca string) (*x509.CertPool, error) {
 	}
 
 	if f.IsDir() {
-		return nil, fmt.Errorf(ErrNotAFile, ca)
+		return nil, fmt.Errorf(errNotAFile, ca)
 	}
 
 	data, err := ioutil.ReadFile(ca)
@@ -300,7 +300,7 @@ func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) error) {
 	if len(req.Question) == 0 {
 		dns.HandleFailed(w, req)
-		s.qErr(w, req, fmt.Errorf(ErrQuery))
+		s.qErr(w, req, fmt.Errorf(errQuery))
 		return
 	}
 

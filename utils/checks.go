@@ -14,7 +14,7 @@ func emptyStringE(s string) error {
 	return nil
 }
 
-// CheckAddresses checks if input strings can be split into ip/port pairs
+// CheckIPV4SocketAddress checks if input strings can be split into ip/port pairs
 func CheckIPV4SocketAddress(address string) error {
 	strSlice := strings.Split(address, ":")
 	if len(strSlice) != 2 {

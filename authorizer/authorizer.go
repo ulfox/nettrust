@@ -22,6 +22,7 @@ type Authorizer struct {
 	doNotFlushAuthorizedHosts         bool
 }
 
+// NewAuthorizer for creating a new Authorizer
 func NewAuthorizer(
 	ttl,
 	ttlCheckTicker int,
@@ -49,13 +50,13 @@ func NewAuthorizer(
 	}
 
 	if authorizer.ttlCheckTicker < 1 {
-		return nil, nil, fmt.Errorf(ErrTTL)
+		return nil, nil, fmt.Errorf(errTTL)
 	} else if authorizer.ttlCheckTicker < 30 {
-		authorizer.fwl.Warnf(WarnTTL, authorizer.ttlCheckTicker)
+		authorizer.fwl.Warnf(warnTTL, authorizer.ttlCheckTicker)
 	}
 
 	if authorizer.authorizedSet == "" {
-		return nil, nil, fmt.Errorf(ErrSetName)
+		return nil, nil, fmt.Errorf(errSetName)
 	}
 
 	cacheContext, err := authorizer.ttlCacheChecker()
@@ -63,7 +64,7 @@ func NewAuthorizer(
 		return nil, nil, err
 	}
 
-	hosts, err := authorizer.fw.GetAuthorizedIPV4Hosts(authorizedSet)
+	hosts, err := authorizer.fw.GetIPV4SetHosts(authorizedSet)
 	if err != nil {
 		log.Fatal(err)
 	}
