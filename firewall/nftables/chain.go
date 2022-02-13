@@ -9,9 +9,9 @@ import (
 
 func (f *FirewallBackend) getChain(c string) (*nftables.Chain, error) {
 	f.Lock()
-	defer f.Unlock()
-
 	chains, err := f.nft.ListChains()
+	f.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
@@ -25,9 +25,9 @@ func (f *FirewallBackend) getChain(c string) (*nftables.Chain, error) {
 
 func (f *FirewallBackend) getTable(c string) (*nftables.Table, error) {
 	f.Lock()
-	defer f.Unlock()
-
 	tables, err := f.nft.ListTables()
+	f.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
@@ -95,11 +95,12 @@ func (f *FirewallBackend) createIPv4Chain(table, chain, chainType string, hookTy
 	}
 
 	f.Lock()
+	defer f.Unlock()
+
 	err = f.nft.Flush()
 	if err != nil {
 		return nil, nil, err
 	}
-	f.Unlock()
 
 	return nt, nc, nil
 }
@@ -110,6 +111,7 @@ func (f *FirewallBackend) createIPv4Chain(table, chain, chainType string, hookTy
 func (f *FirewallBackend) FlushTable() error {
 	f.Lock()
 	defer f.Unlock()
+
 	f.nft.FlushTable(f.table)
 
 	return f.nft.Flush()

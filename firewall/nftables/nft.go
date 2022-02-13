@@ -58,10 +58,11 @@ func (f *FirewallBackend) createChainInputWithEstablished(table *nftables.Table,
 
 	f.Lock()
 	rules, err := f.nft.GetRule(table, chain)
+	f.Unlock()
+
 	if err != nil {
 		return err
 	}
-	f.Unlock()
 
 	for _, rule := range rules {
 		for _, e := range rule.Exprs {
@@ -136,7 +137,10 @@ func (f *FirewallBackend) createChainInputWithEstablished(table *nftables.Table,
 // is not a tailing verdict it will move it at the end by first creating a new reject verdict at the end of
 // the chain and then deleting the existing one
 func (f *FirewallBackend) AddRejectVerdict() error {
+	f.Lock()
 	rules, err := f.nft.GetRule(f.table, f.chain)
+	f.Unlock()
+
 	if err != nil {
 		return err
 	}
@@ -161,10 +165,13 @@ func (f *FirewallBackend) AddRejectVerdict() error {
 					},
 				})
 				err = f.nft.Flush()
+				f.Unlock()
+
 				if err != nil {
 					return err
 				}
 
+				f.Lock()
 				f.nft.DelRule(&nftables.Rule{
 					Table:  f.table,
 					Chain:  f.chain,
@@ -172,11 +179,11 @@ func (f *FirewallBackend) AddRejectVerdict() error {
 				})
 
 				err = f.nft.Flush()
+				f.Unlock()
+
 				if err != nil {
 					return err
 				}
-
-				f.Unlock()
 			}
 
 			return nil

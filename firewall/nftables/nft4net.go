@@ -16,13 +16,13 @@ func (f *FirewallBackend) getIPv4NetworkRule(cidr string) (*nftables.Rule, error
 		return nil, err
 	}
 
+	f.Lock()
 	rules, err := f.nft.GetRule(f.table, f.chain)
+	f.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
-
-	f.Lock()
-	defer f.Unlock()
 
 	for _, rule := range rules {
 		for _, e := range rule.Exprs {
@@ -118,11 +118,11 @@ func (f *FirewallBackend) DeleteIPv4NetworkRule(cidr string) error {
 		return nil
 	}
 
-	f.Lock()
-	defer f.Unlock()
-
 	r.Chain = f.chain
 	r.Table = f.table
+
+	f.Lock()
+	defer f.Unlock()
 
 	err = f.nft.DelRule(r)
 	if err != nil {

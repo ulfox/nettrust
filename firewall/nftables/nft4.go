@@ -11,9 +11,9 @@ import (
 
 func (f *FirewallBackend) getIPv4Rule(ip string) (*nftables.Rule, error) {
 	f.Lock()
-	defer f.Unlock()
-
 	rules, err := f.nft.GetRule(f.table, f.chain)
+	f.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +72,7 @@ func (f *FirewallBackend) AddIPv4Rule(ip string) error {
 			&expr.Verdict{Kind: expr.VerdictAccept},
 		},
 	})
+
 	return f.nft.Flush()
 }
 
@@ -90,11 +91,11 @@ func (f *FirewallBackend) DeleteIPv4Rule(ip string) error {
 		return nil
 	}
 
-	f.Lock()
-	defer f.Unlock()
-
 	r.Chain = f.chain
 	r.Table = f.table
+
+	f.Lock()
+	defer f.Unlock()
 
 	err = f.nft.DelRule(r)
 	if err != nil {

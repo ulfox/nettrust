@@ -10,7 +10,10 @@ import (
 )
 
 func (f *FirewallBackend) getIPv4Set(n string) (*nftables.Set, error) {
+	f.Lock()
 	set, err := f.nft.GetSetByName(f.table, n)
+	f.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
@@ -19,13 +22,13 @@ func (f *FirewallBackend) getIPv4Set(n string) (*nftables.Set, error) {
 }
 
 func (f *FirewallBackend) getIPv4SetRule(n string) (*nftables.Rule, error) {
+	f.Lock()
 	rules, err := f.nft.GetRule(f.table, f.chain)
+	f.Unlock()
+
 	if err != nil {
 		return nil, err
 	}
-
-	f.Lock()
-	defer f.Unlock()
 
 	for _, rule := range rules {
 		for _, e := range rule.Exprs {
