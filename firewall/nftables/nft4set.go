@@ -48,7 +48,8 @@ func (f *FirewallBackend) getIPv4SetRule(n string) (*nftables.Rule, error) {
 	return nil, fmt.Errorf("could not find set rule with name [%s]", n)
 }
 
-func (f *FirewallBackend) GetAuthorizedIPV4Hosts(s string) ([]net.IP, error) {
+// GetIPV4SetHosts return a slice of all hosts from a set
+func (f *FirewallBackend) GetIPV4SetHosts(s string) ([]net.IP, error) {
 	set, err := f.getIPv4Set(s)
 	if err != nil {
 		return nil, err

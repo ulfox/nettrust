@@ -8,8 +8,8 @@ import (
 	"github.com/ulfox/nettrust/firewall/nftables"
 )
 
-// FirewallBackend interface for implementing different firewall backends. nftables, iptables, iptables-nft
-type FirewallBackend interface {
+// Backend interface for implementing different firewall backends. nftables, iptables, iptables-nft
+type Backend interface {
 	AddIPv4Rule(ip string) error
 	DeleteIPv4Rule(ip string) error
 	AddIPv4NetworkRule(cidr string) error
@@ -21,19 +21,19 @@ type FirewallBackend interface {
 	AddRejectVerdict() error
 	FlushTable(t string) error
 	DeleteChain(c string) error
-	GetAuthorizedIPV4Hosts(s string) ([]net.IP, error)
+	GetIPV4SetHosts(s string) ([]net.IP, error)
 }
 
 // Firewall for managing firewall rules
 type Firewall struct {
 	logger  *logrus.Logger
 	ingress chan net.IP
-	FirewallBackend
+	Backend
 	table, chain string
 }
 
-func (f *Firewall) backendExecutor(t string) (*FirewallBackend, error) {
-	var beE FirewallBackend
+func (f *Firewall) backendExecutor(t string) (*Backend, error) {
+	var beE Backend
 
 	if t == "nftables" {
 		nft, err := nftables.NewFirewallBackend(f.table, f.chain, f.logger)
@@ -74,7 +74,7 @@ func NewFirewall(t, table, chain string, logger *logrus.Logger) (*Firewall, erro
 		return nil, err
 	}
 
-	fw.FirewallBackend = *beE
+	fw.Backend = *beE
 
 	return fw, nil
 }
