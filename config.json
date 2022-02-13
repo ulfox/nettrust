@@ -13,6 +13,9 @@
     "fwdTLS": false,
 
     "listenAddr": "127.0.0.1:53",
+    "listenTLS": false,
+    "listenCert": "",
+    "listenCertKey": "",
     "firewallType": "nftables",
 
     "whitelistLoEnabled": true,

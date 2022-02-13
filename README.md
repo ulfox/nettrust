@@ -128,7 +128,7 @@ All sessions that have TTL enabled will be checked against two rules. The first 
 To build NetTrust, simply issue:
 
 ```bash
-    go build -o nettrust
+    go build -o nettrust cmd/nettrust.go
 ```
 
 ## Run NetTrust
