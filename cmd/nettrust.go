@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	tableName     = "net-trust"
-	chainName     = "authorized-output"
-	authorizedSet = "authorized"
+	tableNameOutput = "net-trust"
+	chainNameOutput = "authorized-output"
+	authorizedSet   = "authorized"
+	chainNameInput  = "input"
 )
 
 var (
@@ -46,6 +47,10 @@ func main() {
 		log.Warn(utils.WarnOnExitFlush)
 	}
 
+	if config.DoNotFlushAuthorizedHosts {
+		log.Warn("on exit NetTrust will not flush the authorized hosts list")
+	}
+
 	// DNS Server
 	dnsServer, err := dns.NewDNSServer(
 		config.ListenAddr,
@@ -61,7 +66,14 @@ func main() {
 
 	// Firewall
 	fw, err := firewall.NewFirewall(
-		config.FirewallType, tableName, chainName, logger)
+		config.FirewallType, tableNameOutput, chainNameOutput, logger)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Create default chains, tables and rules
+	// This also applies any whitelist that may have been provided
+	err = makeDefaultRules(fw, config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -92,16 +104,10 @@ func main() {
 		authorizedSet,
 		config.Blacklist.Hosts,
 		config.Blacklist.Networks,
+		config.DoNotFlushAuthorizedHosts,
 		fw,
 		logger,
 	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Create default chains, tables and rules
-	// This also applies any whitelist that may have been provided
-	err = makeDefaultRules(fw, config)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -128,12 +134,16 @@ func main() {
 
 	if !config.DoNotFlushTable {
 		log.Info("flush table is enabled, flushing ...")
-		err = fw.FlushTable()
+		err = fw.FlushTable(tableNameOutput)
 		if err != nil {
 			log.Fatal(err)
 		}
 
-		err = fw.DeleteChain()
+		err = fw.DeleteChain(chainNameOutput)
+		if err != nil {
+			log.Fatal(err)
+		}
+		err = fw.DeleteChain(chainNameInput)
 		if err != nil {
 			log.Fatal(err)
 		}

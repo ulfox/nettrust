@@ -50,13 +50,15 @@ func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 					"Stage":     "Deauthorize",
 				})
 
-				for h := range f.cache.Hosts {
-					l.Infof("Removing host [%s] from firewall rules", h)
-					err := f.fw.DeleteIPv4FromSetRule(f.authorizedSet, h)
-					if err != nil {
-						l.Error(err)
+				if !f.doNotFlushAuthorizedHosts {
+					for h := range f.cache.Hosts {
+						l.Infof("Removing host [%s] from firewall rules", h)
+						err := f.fw.DeleteIPv4FromSetRule(f.authorizedSet, h)
+						if err != nil {
+							l.Error(err)
+						}
+						f.cache.Delete(h)
 					}
-					f.cache.Delete(h)
 				}
 
 				l.Info("Bye!")

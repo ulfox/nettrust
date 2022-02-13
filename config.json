@@ -19,5 +19,6 @@
     "whitelistPrivateEnabled": true,
     "ttl": -1,
     "ttlInterval": 30,
-    "doNotFlushTable": false
+    "doNotFlushTable": false,
+    "doNotFlushAuthorizedHosts": false
 }

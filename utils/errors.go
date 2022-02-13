@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	ErrSameAddr     string = "listen address can not be the same as forward address"
-	WarnOnExitFlush string = "on exit flush table is enabled. Please set this to false if you wish to deny traffic to all if NetTrust is not running"
+	ErrSameAddr               string = "listen address can not be the same as forward address"
+	WarnOnExitFlush           string = "on exit flush table is enabled. Please set this to false if you wish to deny traffic to all if NetTrust is not running"
+	WarnOnExitFlushAuthorized string = "on exit NetTrust will not flush the authorized hosts list"
 )
 
 // WrapErr for creating errors and wrapping them along

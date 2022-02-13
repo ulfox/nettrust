@@ -207,9 +207,11 @@ Usage of ./bin/nettrust:
   -authorized-ttl int
     	Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)
   -config string
-    	Path to config.json (default "config.json")
+    	Path to config.json
+  -do-not-flush-authorized-hosts
+    	Do not clean up the authorized hosts list on exit. Use this together with do-not-flush-table to keep the NetTrust table as is on exit
   -do-not-flush-table
-    	Do not clean up tables when NetTrust exists. Use this flag if you want to deny communication when NetTrust has exited
+    	Do not clean up tables when NetTrust exists. Use this flag if you want to continue to deny communication when NetTrust has exited
   -firewall-type string
     	NetTrust firewall type (nftables is only supported for now)
   -fwd-addr string
@@ -219,7 +221,7 @@ Usage of ./bin/nettrust:
   -fwd-tls
     	Enable DoT. This expects that forward dns address supports DoT and fwd-proto is tcp
   -fwd-tls-cert string
-    	path to certificate that will be used to validate forward dns hostname
+    	path to certificate that will be used to validate forward dns hostname. If you do not set this, the the host root CAs will be used
   -listen-addr string
     	NetTrust listen dns address
   -ttl-check-ticker int
@@ -227,7 +229,7 @@ Usage of ./bin/nettrust:
   -whitelist-loopback
     	Loopback network space 127.0.0.0/8 will be whitelisted (default true) (default true)
   -whitelist-private
-    	If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true)
+    	If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true) (default true)
 ```
 
 #### Config options
@@ -256,7 +258,8 @@ You can also use a json config to set options.
     "whitelistPrivateEnabled": true,
     "ttl": -1,
     "ttlInterval": 30,
-    "doNotFlushTable": false // Set this to true if you want to keep the rules and the chain when NetTrust has stopped
+    "doNotFlushTable": false, // Set this to true if you want to keep the rules and the chain when NetTrust has stopped
+    "doNotFlushAuthorizedHosts": false
 }
 ```
 

@@ -19,20 +19,21 @@ type NetTrust struct {
 		Networks []string `json:"networks"`
 		Hosts    []string `json:"hosts"`
 	} `json:"blacklist"`
-	Env                     map[string]string
-	DoNotFlushTable         bool   `json:"doNotFlushTable"`
-	FWDAddr                 string `json:"fwdAddr"`
-	FWDProto                string `json:"fwdProto"`
-	FWDTLS                  bool   `json:"fwdTLS"`
-	FWDCaCert               string `json:"fwdCaCert"`
-	ListenAddr              string `json:"listenAddr"`
-	FirewallType            string `json:"firewallType"`
-	WhitelistLoEnabled      bool   `json:"whitelistLoEnabled"`
-	WhitelistPrivateEnabled bool   `json:"whitelistPrivateEnabled"`
-	WhitelistLo             []string
-	WhitelistPrivate        []string
-	AuthorizedTTL           int `json:"ttl"`
-	TTLCheckTicker          int `json:"ttlInterval"`
+	Env                       map[string]string
+	DoNotFlushTable           bool   `json:"doNotFlushTable"`
+	DoNotFlushAuthorizedHosts bool   `json:"doNotFlushAuthorizedHosts"`
+	FWDAddr                   string `json:"fwdAddr"`
+	FWDProto                  string `json:"fwdProto"`
+	FWDTLS                    bool   `json:"fwdTLS"`
+	FWDCaCert                 string `json:"fwdCaCert"`
+	ListenAddr                string `json:"listenAddr"`
+	FirewallType              string `json:"firewallType"`
+	WhitelistLoEnabled        bool   `json:"whitelistLoEnabled"`
+	WhitelistPrivateEnabled   bool   `json:"whitelistPrivateEnabled"`
+	WhitelistLo               []string
+	WhitelistPrivate          []string
+	AuthorizedTTL             int `json:"ttl"`
+	TTLCheckTicker            int `json:"ttlInterval"`
 }
 
 // GetADHoleEnv will read environ and create a map of k:v from envs
@@ -42,6 +43,11 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		"do-not-flush-table",
 		false,
 		"Do not clean up tables when NetTrust exists. Use this flag if you want to continue to deny communication when NetTrust has exited",
+	)
+	doNotFlushAuthorizedHosts := flag.Bool(
+		"do-not-flush-authorized-hosts",
+		false,
+		"Do not clean up the authorized hosts list on exit. Use this together with do-not-flush-table to keep the NetTrust table as is on exit",
 	)
 	fwdAddr := flag.String("fwd-addr", "", "NetTrust forward dns address")
 	fwdProto := flag.String("fwd-proto", "", "NetTrust dns forward protocol")
@@ -117,6 +123,10 @@ func GetNetTrustEnv() (*NetTrust, error) {
 
 	if *doNotFlushTable {
 		config.DoNotFlushTable = *doNotFlushTable
+	}
+
+	if *doNotFlushAuthorizedHosts {
+		config.DoNotFlushAuthorizedHosts = *doNotFlushAuthorizedHosts
 	}
 
 	if *fwdAddr != "" {
