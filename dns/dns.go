@@ -282,7 +282,7 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 
 	resp, _, err := s.client.Exchange(req, s.fwdAddr)
 	if err != nil {
-		s.qFatal(w, req, err)
+		s.qErr(w, req, err)
 		return
 	}
 
@@ -301,10 +301,4 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 func (s *Server) qErr(w dns.ResponseWriter, req *dns.Msg, err error) {
 	s.fwdl.Error(err)
 	dns.HandleFailed(w, req)
-}
-
-func (s *Server) qFatal(w dns.ResponseWriter, req *dns.Msg, err error) {
-	s.fwdl.Error(err)
-	dns.HandleFailed(w, req)
-	s.cancelOnErr()
 }

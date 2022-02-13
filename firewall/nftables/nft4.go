@@ -10,13 +10,13 @@ import (
 )
 
 func (f *FirewallBackend) getIPv4Rule(ip string) (*nftables.Rule, error) {
+	f.Lock()
+	defer f.Unlock()
+
 	rules, err := f.nft.GetRule(f.table, f.chain)
 	if err != nil {
 		return nil, err
 	}
-
-	f.Lock()
-	defer f.Unlock()
 
 	for _, rule := range rules {
 		for _, e := range rule.Exprs {

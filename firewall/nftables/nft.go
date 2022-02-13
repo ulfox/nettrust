@@ -1,8 +1,6 @@
 package nftables
 
 import (
-	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/google/nftables"
@@ -29,85 +27,109 @@ func NewFirewallBackend(t, c string, logger *logrus.Logger) (*FirewallBackend, e
 		chainName: c,
 	}
 
-	nt, err := firewallBackend.getTable(t)
-	if err != nil {
-		if !strings.HasPrefix(err.Error(), "could not find table") {
-			return nil, err
-		}
-		firewallBackend.Lock()
-		nt = firewallBackend.nft.AddTable(&nftables.Table{
-			Name:   firewallBackend.tableName,
-			Family: nftables.TableFamilyIPv4,
-		})
-		firewallBackend.Unlock()
-	}
-	firewallBackend.table = nt
-
-	nc, err := firewallBackend.getChain(c)
-	if err != nil {
-		if !strings.HasPrefix(err.Error(), "could not find chain") {
-			return nil, err
-		}
-		firewallBackend.Lock()
-		// drop by default.
-		// If somehow the reject tailing rule is skipped,
-		// this will introduced timeouts for processes
-		// that request to access an non-authorized ip.
-		outputPolicy := nftables.ChainPolicyDrop
-		nc = firewallBackend.nft.AddChain(&nftables.Chain{
-			Name:     firewallBackend.chainName,
-			Table:    firewallBackend.table,
-			Type:     nftables.ChainTypeFilter,
-			Hooknum:  nftables.ChainHookOutput,
-			Priority: nftables.ChainPriorityFilter,
-			Policy:   &outputPolicy,
-		})
-		firewallBackend.Unlock()
-	}
-	firewallBackend.chain = nc
-
-	firewallBackend.Lock()
-	err = firewallBackend.nft.Flush()
+	nt, nc, err := firewallBackend.createIPv4Chain(t, c, string(nftables.ChainTypeFilter), int(nftables.ChainHookOutput))
 	if err != nil {
 		return nil, err
 	}
-	firewallBackend.Unlock()
+
+	firewallBackend.table = nt
+	firewallBackend.chain = nc
+
+	nti, nci, err := firewallBackend.createIPv4Chain(t, "input", string(nftables.ChainTypeFilter), int(nftables.ChainHookInput))
+	if err != nil {
+		return nil, err
+	}
+
+	err = firewallBackend.createChainInputWithEstablished(nti, nci)
+	if err != nil {
+		return nil, err
+	}
 
 	return firewallBackend, nil
 }
 
-func (f *FirewallBackend) getChain(c string) (*nftables.Chain, error) {
+func (f *FirewallBackend) createChainInputWithEstablished(table *nftables.Table, chain *nftables.Chain) error {
+	// ip filter INPUT
+	// [ ct load state => reg 1 ]
+	// [ bitwise reg 1 = (reg=1 & 0x00000006 ) ^ 0x00000000 ]
+	// [ cmp neq reg 1 0x00000000 ]
+	// [ counter pkts 0 bytes 0 ]
+	// [ immediate reg 0 accept ]
+
 	f.Lock()
-	defer f.Unlock()
-
-	chains, err := f.nft.ListChains()
+	rules, err := f.nft.GetRule(table, chain)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	for _, t := range chains {
-		if c == t.Name {
-			return t, nil
-		}
-	}
-	return nil, fmt.Errorf("could not find chain [%s]", c)
-}
+	f.Unlock()
 
-func (f *FirewallBackend) getTable(c string) (*nftables.Table, error) {
-	f.Lock()
-	defer f.Unlock()
-
-	tables, err := f.nft.ListTables()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, t := range tables {
-		if c == t.Name {
-			return t, nil
+	for _, rule := range rules {
+		for _, e := range rule.Exprs {
+			ct, ok := e.(*expr.Ct)
+			if !ok {
+				continue
+			}
+			if ct.Key == expr.CtKeySTATE {
+				return nil
+			}
 		}
 	}
 
-	return nil, fmt.Errorf("could not find table [%s]", c)
+	f.Lock()
+	defer f.Unlock()
+
+	f.nft.AddRule(&nftables.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeySTATE,
+			},
+			&expr.Bitwise{
+				SourceRegister: 1,
+				DestRegister:   1,
+				Len:            4,
+				Mask:           []byte{0x06, 0x00, 0x00, 0x00},
+				Xor:            []byte{0x00, 0x00, 0x00, 0x00},
+			},
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0x00, 0x00, 0x00, 0x00},
+			},
+			&expr.Verdict{Kind: expr.VerdictAccept},
+		},
+	})
+
+	err = f.nft.Flush()
+	if err != nil {
+		return err
+	}
+
+	// ip filter INPUT
+	// [ meta load iifname => reg 1 ]
+	// [ cmp eq reg 1 0x00006f6c 0x00000000 0x00000000 0x00000000 ]
+	// [ immediate reg 0 accept ]
+
+	f.nft.AddRule(&nftables.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			&expr.Meta{
+				Register: 1,
+				Key:      expr.MetaKeyIIFNAME,
+			},
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{0x6c, 0x6f, 0x00, 0x00},
+			},
+			&expr.Verdict{Kind: expr.VerdictAccept},
+		},
+	})
+
+	return f.nft.Flush()
 }
 
 // AddRejectVerdict is responsible for appending a reject verdict at the end of the chain. If reject verdict
@@ -172,27 +194,5 @@ func (f *FirewallBackend) AddRejectVerdict() error {
 			&expr.Reject{},
 		},
 	})
-	return f.nft.Flush()
-}
-
-// Remove rules from chain. This will leave the chain with the defined policy
-// If the policy is drop, we should run DeleteChain also if we want the host
-// to be able to do network communication
-func (f *FirewallBackend) FlushTable() error {
-	f.Lock()
-	defer f.Unlock()
-	f.nft.FlushTable(f.table)
-
-	return f.nft.Flush()
-}
-
-// Delete chain from the table. By removing the chain we allow all communication
-// if no other rules are set by external tools
-func (f *FirewallBackend) DeleteChain() error {
-	f.Lock()
-	defer f.Unlock()
-
-	f.nft.DelChain(f.chain)
-
 	return f.nft.Flush()
 }
