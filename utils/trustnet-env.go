@@ -27,6 +27,9 @@ type NetTrust struct {
 	FWDTLS                    bool   `json:"fwdTLS"`
 	FWDCaCert                 string `json:"fwdCaCert"`
 	ListenAddr                string `json:"listenAddr"`
+	ListenTLS                 bool   `json:"listenTLS"`
+	ListenCert                string `json:"listenCert"`
+	ListenCertKey             string `json:"listenCertKey"`
 	FirewallType              string `json:"firewallType"`
 	WhitelistLoEnabled        bool   `json:"whitelistLoEnabled"`
 	WhitelistPrivateEnabled   bool   `json:"whitelistPrivateEnabled"`
@@ -62,6 +65,9 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		"path to certificate that will be used to validate forward dns hostname. If you do not set this, the the host root CAs will be used",
 	)
 	listenAddr := flag.String("listen-addr", "", "NetTrust listen dns address")
+	listenTLS := flag.Bool("listen-tls", false, "Enable tls listener, tls listener works only with the TCP DNS Service, UDP will continue to serve in plaintext mode")
+	listenCert := flag.String("listen-cert", "", "path to certificate that will be used by the TCP DNS Service to serve DoT")
+	listenCertKey := flag.String("listen-cert-key", "", "path to the private key that will be used by the TCP DNS Service to serve DoT")
 	firewallType := flag.String("firewall-type", "", "NetTrust firewall type (nftables is only supported for now)")
 	whitelistLoopback := flag.Bool(
 		"whitelist-loopback",
@@ -156,6 +162,35 @@ func GetNetTrustEnv() (*NetTrust, error) {
 
 	if *listenAddr != "" {
 		config.ListenAddr = *listenAddr
+	}
+
+	if *listenTLS {
+		config.ListenTLS = *listenTLS
+	}
+
+	if *listenCert != "" {
+		config.ListenCert = *listenCert
+	}
+
+	if *listenCertKey != "" {
+		config.ListenCertKey = *listenCertKey
+	}
+
+	if config.ListenTLS {
+		if config.ListenCert == "" {
+			return nil, fmt.Errorf(ErrListenTLSNoFile, "certificate")
+		}
+		if config.ListenCertKey == "" {
+			return nil, fmt.Errorf(ErrListenTLSNoFile, "private key")
+		}
+		err = fileExists(config.ListenCert)
+		if err != nil {
+			return nil, err
+		}
+		err = fileExists(config.ListenCertKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if config.ListenAddr == config.FWDAddr {

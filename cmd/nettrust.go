@@ -56,7 +56,10 @@ func main() {
 		config.ListenAddr,
 		config.FWDAddr,
 		config.FWDProto,
+		config.ListenCert,
+		config.ListenCertKey,
 		config.FWDCaCert,
+		config.ListenTLS,
 		config.FWDTLS,
 		logger,
 	)

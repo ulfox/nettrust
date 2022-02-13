@@ -10,6 +10,7 @@ import (
 
 var (
 	ErrSameAddr               string = "listen address can not be the same as forward address"
+	ErrListenTLSNoFile        string = "listen-tls is enabled but no %s was provided"
 	WarnOnExitFlush           string = "on exit flush table is enabled. Please set this to false if you wish to deny traffic to all if NetTrust is not running"
 	WarnOnExitFlushAuthorized string = "on exit NetTrust will not flush the authorized hosts list"
 )

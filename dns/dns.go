@@ -21,7 +21,8 @@ type Server struct {
 	sync.Mutex
 
 	listenAddr, fwdAddr, fwdProto string
-	fwdTLS, sigOnce               bool
+	listenTLS, fwdTLS, sigOnce    bool
+	listenCerts                   *tls.Certificate
 	logger                        *logrus.Logger
 	fwdl                          *logrus.Entry
 	client                        *dns.Client
@@ -31,7 +32,7 @@ type Server struct {
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
-func NewDNSServer(laddr, faddr, fwdProto, cacert string, fwdTLS bool, logger *logrus.Logger) (*Server, error) {
+func NewDNSServer(laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCert string, listenTLS, fwdTLS bool, logger *logrus.Logger) (*Server, error) {
 	if laddr == "" || faddr == "" {
 		return nil, fmt.Errorf(ErrFWDNSAddr)
 	}
@@ -62,8 +63,8 @@ func NewDNSServer(laddr, faddr, fwdProto, cacert string, fwdTLS bool, logger *lo
 		client.Net = "tcp-tls"
 	}
 
-	if cacert != "" {
-		certPool, err := loadCaCert(cacert)
+	if fwdTLS && clientCaCert != "" {
+		certPool, err := loadClientCaCert(clientCaCert)
 		if err != nil {
 			return nil, err
 		}
@@ -74,11 +75,20 @@ func NewDNSServer(laddr, faddr, fwdProto, cacert string, fwdTLS bool, logger *lo
 
 	server := &Server{
 		listenAddr: laddr,
+		listenTLS:  listenTLS,
 		fwdAddr:    faddr,
 		fwdProto:   fwdProto,
 		fwdTLS:     fwdTLS,
 		logger:     logger,
 		client:     client,
+	}
+
+	if listenTLS {
+		cert, err := tls.LoadX509KeyPair(listenCert, ListenCertKey)
+		if err != nil {
+			return nil, err
+		}
+		server.listenCerts = &cert
 	}
 
 	server.fwdl = server.logger.WithFields(logrus.Fields{
@@ -91,7 +101,7 @@ func NewDNSServer(laddr, faddr, fwdProto, cacert string, fwdTLS bool, logger *lo
 	return server, nil
 }
 
-func loadCaCert(ca string) (*x509.CertPool, error) {
+func loadClientCaCert(ca string) (*x509.CertPool, error) {
 	f, err := os.Stat(ca)
 	if os.IsNotExist(err) {
 		return nil, err
@@ -240,7 +250,21 @@ func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 			"Stage":     "Init",
 		})
 
+		if s.listenTLS {
+			l = s.logger.WithFields(logrus.Fields{
+				"Component": "[TLS] DNSServer",
+				"Stage":     "Init",
+			})
+
+			srv.TLSConfig = &tls.Config{
+				Certificates: []tls.Certificate{*s.listenCerts},
+			}
+
+			srv.Net = "tcp-tls"
+		}
+
 		l.Info("Starging")
+
 		if err := srv.ListenAndServe(); err != nil {
 			l.Error(err)
 		}
