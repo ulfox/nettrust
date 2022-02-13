@@ -8,6 +8,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+var (
+	ErrSameAddr     string = "listen address can not be the same as forward address"
+	WarnOnExitFlush string = "on exit flush table is enabled. Please set this to false if you wish to deny traffic to all if NetTrust is not running"
+)
+
 // WrapErr for creating errors and wrapping them along
 // with callers info
 func WrapErr(e interface{}, p ...interface{}) error {

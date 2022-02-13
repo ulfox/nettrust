@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/google/nftables"
+	"github.com/google/nftables/expr"
 )
 
 func (f *FirewallBackend) getChain(c string) (*nftables.Chain, error) {
@@ -103,6 +104,157 @@ func (f *FirewallBackend) createIPv4Chain(table, chain, chainType string, hookTy
 	}
 
 	return nt, nc, nil
+}
+
+func (f *FirewallBackend) createChainInputWithEstablished(table *nftables.Table, chain *nftables.Chain) error {
+
+	f.Lock()
+	rules, err := f.nft.GetRule(table, chain)
+	f.Unlock()
+
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules {
+		for _, e := range rule.Exprs {
+			ct, ok := e.(*expr.Ct)
+			if !ok {
+				continue
+			}
+			if ct.Key == expr.CtKeySTATE {
+				return nil
+			}
+		}
+	}
+
+	f.Lock()
+	defer f.Unlock()
+
+	f.nft.AddRule(&nftables.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			// [ ct load state => reg 1 ]
+			&expr.Ct{
+				Register: 1,
+				Key:      expr.CtKeySTATE,
+			},
+			// [ bitwise reg 1 = (reg=1 & 0x00000006 ) ^ 0x00000000 ]
+			&expr.Bitwise{
+				SourceRegister: 1,
+				DestRegister:   1,
+				Len:            4,
+				Mask:           []byte{0x06, 0x00, 0x00, 0x00},
+				Xor:            []byte{0x00, 0x00, 0x00, 0x00},
+			},
+			// [ cmp neq reg 1 0x00000000 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpNeq,
+				Register: 1,
+				Data:     []byte{0x00, 0x00, 0x00, 0x00},
+			},
+			&expr.Counter{},
+			&expr.Verdict{Kind: expr.VerdictAccept},
+		},
+	})
+
+	err = f.nft.Flush()
+	if err != nil {
+		return err
+	}
+
+	f.nft.AddRule(&nftables.Rule{
+		Table: table,
+		Chain: chain,
+		Exprs: []expr.Any{
+			// [ meta load iifname => reg 1 ]
+			&expr.Meta{
+				Register: 1,
+				Key:      expr.MetaKeyIIFNAME,
+			},
+			// [ cmp eq reg 1 0x00006f6c 0x00000000 0x00000000 0x00000000 ]
+			&expr.Cmp{
+				Op:       expr.CmpOpEq,
+				Register: 1,
+				Data:     []byte{0x6c, 0x6f, 0x00, 0x00},
+			},
+			&expr.Verdict{Kind: expr.VerdictAccept},
+		},
+	})
+
+	return f.nft.Flush()
+}
+
+// AddRejectVerdict is responsible for appending a reject verdict at the end of the chain. If reject verdict
+// is not a tailing verdict it will move it at the end by first creating a new reject verdict at the end of
+// the chain and then deleting the existing one
+func (f *FirewallBackend) AddRejectVerdict() error {
+	f.Lock()
+	rules, err := f.nft.GetRule(f.table, f.chain)
+	f.Unlock()
+
+	if err != nil {
+		return err
+	}
+
+	totalRules := len(rules)
+	for i, r := range rules {
+		if len(r.Exprs) == 1 {
+			_, ok := r.Exprs[0].(*expr.Counter)
+			if !ok {
+				continue
+			}
+
+			if i != (totalRules - 1) {
+				f.logger.Info("reject is not a tailing rule. Re-creating as tailing")
+				f.Lock()
+				f.nft.AddRule(&nftables.Rule{
+					Table: f.table,
+					Chain: f.chain,
+					Exprs: []expr.Any{
+						&expr.Counter{},
+						&expr.Reject{},
+					},
+				})
+				err = f.nft.Flush()
+				f.Unlock()
+
+				if err != nil {
+					return err
+				}
+
+				f.Lock()
+				f.nft.DelRule(&nftables.Rule{
+					Table:  f.table,
+					Chain:  f.chain,
+					Handle: r.Handle,
+				})
+
+				err = f.nft.Flush()
+				f.Unlock()
+
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}
+	}
+
+	f.Lock()
+	defer f.Unlock()
+
+	f.nft.AddRule(&nftables.Rule{
+		Table: f.table,
+		Chain: f.chain,
+		Exprs: []expr.Any{
+			&expr.Counter{},
+			&expr.Reject{},
+		},
+	})
+	return f.nft.Flush()
 }
 
 // Remove rules from chain. This will leave the chain with the defined policy

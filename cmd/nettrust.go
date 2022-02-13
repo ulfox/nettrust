@@ -43,7 +43,7 @@ func main() {
 	}
 
 	if !config.DoNotFlushTable {
-		log.Warn("on exit flush table is enabled. Please set this to false if you wish to deny traffic to all if NetTrust is not running")
+		log.Warn(utils.WarnOnExitFlush)
 	}
 
 	// DNS Server
@@ -60,7 +60,8 @@ func main() {
 	}
 
 	// Firewall
-	fw, err := firewall.NewFirewall(config.FirewallType, tableName, chainName, logger)
+	fw, err := firewall.NewFirewall(
+		config.FirewallType, tableName, chainName, logger)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -85,7 +86,15 @@ func main() {
 		}
 	}
 
-	authorizer, cacheContext, err := authorizer.NewAuthorizer(config.AuthorizedTTL, config.TTLCheckTicker, authorizedSet, config.Blacklist.Hosts, config.Blacklist.Networks, fw, logger)
+	authorizer, cacheContext, err := authorizer.NewAuthorizer(
+		config.AuthorizedTTL,
+		config.TTLCheckTicker,
+		authorizedSet,
+		config.Blacklist.Hosts,
+		config.Blacklist.Networks,
+		fw,
+		logger,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -98,8 +107,10 @@ func main() {
 	}
 
 	// Init DNS Servers
-	udpDNSServerContext := dnsServer.UDPListenBackground(authorizer.HandleRequest)
-	tcpDNSServerContext := dnsServer.TCPListenBackground(authorizer.HandleRequest)
+	udpDNSServerContext := dnsServer.UDPListenBackground(
+		authorizer.HandleRequest)
+	tcpDNSServerContext := dnsServer.TCPListenBackground(
+		authorizer.HandleRequest)
 
 	sysSigs := utils.NewOSSignal()
 
