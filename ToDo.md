@@ -6,7 +6,6 @@
 
 ## Features
 
-- Add inbound rules to deny all except established / related connections (we might want to skip this since NetTrust is meant to filter outbound traffic mostly, but I am adding it here to track it in case we want to add some kind of default deny inbound rules on cases were no firewall rules exist at all)
 - DNS listen strikes on many invalid/block requests
 - Handle IPv6 also
 - Add support for reverse queries, essentially whitelisting IPs if the DNS Authorizer returns a domain back to NetTrust
