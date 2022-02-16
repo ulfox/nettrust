@@ -3,9 +3,15 @@
 ## Improvements
 
 - Check chains priority and ensure NetTrust Chain has high priority in the related table
+- Make nftable module more dynamic. Add DNAT & SNAT filtering. Add jump rules, enable logging
 
 ## Features
 
+- Add DNS Cache. DNS Proxy should keep a cache to reduce latency
+- Cloud provider plugin
+- Add option for TLS Client authendication
+- Add eBPF filtering to allow NetTrust block packets before the enter the Kenrel network stack
+- Add network namespace filtering option
 - DNS listen strikes on many invalid/block requests
 - Handle IPv6 also
 - Add support for reverse queries, essentially whitelisting IPs if the DNS Authorizer returns a domain back to NetTrust
@@ -23,3 +29,4 @@
 - Add option to watch for /etc/resolv.conf changes and revert back to NetTrust listening address
 - Add DNS Forward loadbalance option (to allow usage of more than 1 DNS server)
 - Add debug logs
+
