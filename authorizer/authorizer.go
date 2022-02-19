@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/sirupsen/logrus"
+	"github.com/ti-mo/conntrack"
 	"github.com/ulfox/nettrust/authorizer/cache"
 	"github.com/ulfox/nettrust/firewall"
 )
@@ -15,6 +16,7 @@ type Authorizer struct {
 	fw                                *firewall.Firewall
 	fwl                               *logrus.Entry
 	cache                             *cache.Authorized
+	conntrack                         *conntrack.Conn
 	activeHosts                       *map[string]bool
 	blacklistHosts, blacklistNetworks []string
 	ttl, ttlCheckTicker               int
@@ -32,6 +34,10 @@ func NewAuthorizer(
 	fw *firewall.Firewall,
 	logger *logrus.Logger) (*Authorizer, *ServiceContext, error) {
 
+	c, err := conntrack.Dial(nil)
+	if err != nil {
+		return nil, nil, err
+	}
 	authorizer := &Authorizer{
 		logger: logger,
 		fwl: logger.WithFields(logrus.Fields{
@@ -45,6 +51,7 @@ func NewAuthorizer(
 		authorizedSet:             authorizedSet,
 		fw:                        fw,
 		cache:                     cache.NewCache(ttl),
+		conntrack:                 c,
 		activeHosts:               &map[string]bool{},
 		doNotFlushAuthorizedHosts: doNotFlushAuthorizedHosts,
 	}

@@ -1,21 +1,19 @@
 package authorizer
 
 import (
+	"fmt"
 	"strings"
-
-	"github.com/ti-mo/conntrack"
 )
 
 // conntrackDump, not blocking for now. We may consider making this blocking to ensure that
 // f.activeHosts are protected from concurrent writes. For now, we expect f.activeHosts to
 // be read only by ttl checker and written only by this method
 func (f *Authorizer) conntrackDump() (map[string]bool, error) {
-	c, err := conntrack.Dial(nil)
-	if err != nil {
-		return nil, err
+	if f.conntrack == nil {
+		return nil, fmt.Errorf(errNil)
 	}
 
-	df, err := c.Dump()
+	df, err := f.conntrack.Dump()
 	if err != nil {
 		return nil, err
 	}
