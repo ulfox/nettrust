@@ -10,16 +10,15 @@
 - Add DNS Cache. DNS Proxy should keep a cache to reduce latency
 - Cloud provider plugin
 - Add option for TLS Client authendication
-- Add eBPF filtering to allow NetTrust block packets before the enter the Kenrel network stack
-- Add network namespace filtering option
+- Add eBPF filtering to allow NetTrust block packets before they enter the Kenrel network stack
+- Add network namespace filtering option. This can be achieved by making the firewall backend an array and loop over each time a command is executed to handle multipe namespaces
 - DNS listen strikes on many invalid/block requests
 - Handle IPv6 also
 - Add support for reverse queries, essentially whitelisting IPs if the DNS Authorizer returns a domain back to NetTrust
-- Add NAT Filtering to allow NetTrust to as an intermediate (GW) server. Currently NetTrust filters only OUTPUT Hook from the Filtering table. NAT/PREROUTING should also be available soon
+- Add NAT Filtering to allow NetTrust to run as an intermediate (GW) server. Currently NetTrust filters only OUTPUT Hook from the Filtering table. NAT/PREROUTING should also be available soon
 - Add metrics capabilities to monitor NetTrust
 - Add network statistics (e.g. how many times a host was queried) to allow alerts/notifications on certain events
 - Add DNSSec
-- Add IPv6 Filtering
 - Add IPTables Support (iptables-legacy, iptables-nft)
 - Add option to use a KV store for keeping host tracking information
 - Use conntrack to check connection info (for example, expire a whitelisted hosts sooner if the connection has been terminated)
