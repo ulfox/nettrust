@@ -18,10 +18,12 @@ type Backend interface {
 	AddIPv4SetRule(n string) error
 	AddIPv4ToSetRule(n, ip string) error
 	DeleteIPv4FromSetRule(n, ip string) error
-	AddRejectVerdict() error
+	AddTailingReject() error
 	FlushTable(t string) error
 	DeleteChain(c string) error
-	GetIPV4SetHosts(s string) ([]net.IP, error)
+	GetIPv4AuthorizedHosts(s string) ([]net.IP, error)
+	CreateIPv4Table(t string) error
+	CreateIPv4Chain(t, c, ct string, ht int) error
 }
 
 // Firewall for managing firewall rules

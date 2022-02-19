@@ -8,7 +8,7 @@ import (
 	"github.com/ulfox/nettrust/dns"
 	"github.com/ulfox/nettrust/firewall"
 
-	"github.com/ulfox/nettrust/utils"
+	"github.com/ulfox/nettrust/core"
 )
 
 const (
@@ -34,7 +34,7 @@ func main() {
 	})
 
 	// Read Nettrust environment and config
-	config, err := utils.GetNetTrustEnv()
+	config, err := core.GetNetTrustEnv()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -44,7 +44,7 @@ func main() {
 	}
 
 	if !config.DoNotFlushTable {
-		log.Warn(utils.WarnOnExitFlush)
+		log.Warn(core.WarnOnExitFlush)
 	}
 
 	if config.DoNotFlushAuthorizedHosts {
@@ -83,7 +83,7 @@ func main() {
 
 	for k, v := range config.Env {
 		if strings.HasPrefix(k, "blacklist.networks") {
-			err = utils.CheckIPV4Network(v)
+			err = core.CheckIPV4Network(v)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -93,7 +93,7 @@ func main() {
 
 	for k, v := range config.Env {
 		if strings.HasPrefix(k, "blacklist.hosts") {
-			err = utils.CheckIPV4Addresses(v)
+			err = core.CheckIPV4Addresses(v)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -121,7 +121,7 @@ func main() {
 	tcpDNSServerContext := dnsServer.TCPListenBackground(
 		authorizer.HandleRequest)
 
-	sysSigs := utils.NewOSSignal()
+	sysSigs := core.NewOSSignal()
 
 	sysSigs.Wait()
 	log.Infof("Interrupted")
@@ -153,11 +153,11 @@ func main() {
 	}
 }
 
-func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
+func makeDefaultRules(fw *firewall.Firewall, config *core.NetTrust) error {
 	var err error
 
 	for _, v := range config.WhitelistLo {
-		err = utils.CheckIPV4Network(v)
+		err = core.CheckIPV4Network(v)
 		if err != nil {
 			return err
 		}
@@ -169,7 +169,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 	}
 
 	for _, v := range config.WhitelistPrivate {
-		err = utils.CheckIPV4Network(v)
+		err = core.CheckIPV4Network(v)
 		if err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 
 	for k, v := range config.Env {
 		if strings.HasPrefix(k, "whitelist.networks") {
-			err = utils.CheckIPV4Network(v)
+			err = core.CheckIPV4Network(v)
 			if err != nil {
 				return err
 			}
@@ -195,7 +195,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 	}
 
 	for _, v := range config.Whitelist.Networks {
-		err = utils.CheckIPV4Network(v)
+		err = core.CheckIPV4Network(v)
 		if err != nil {
 			return err
 		}
@@ -217,7 +217,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 	}
 
 	for _, n := range []string{config.ListenAddr, config.FWDAddr} {
-		err = utils.CheckIPV4SocketAddress(n)
+		err = core.CheckIPV4SocketAddress(n)
 		if err != nil {
 			return err
 		}
@@ -230,7 +230,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 
 	for k, v := range config.Env {
 		if strings.HasPrefix(k, "whitelist.hosts") {
-			err = utils.CheckIPV4Addresses(v)
+			err = core.CheckIPV4Addresses(v)
 			if err != nil {
 				return err
 			}
@@ -243,7 +243,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 	}
 
 	for _, v := range config.Whitelist.Hosts {
-		err = utils.CheckIPV4Addresses(v)
+		err = core.CheckIPV4Addresses(v)
 		if err != nil {
 			return err
 		}
@@ -264,7 +264,7 @@ func makeDefaultRules(fw *firewall.Firewall, config *utils.NetTrust) error {
 		return err
 	}
 
-	err = fw.AddRejectVerdict()
+	err = fw.AddTailingReject()
 	if err != nil {
 		return err
 	}

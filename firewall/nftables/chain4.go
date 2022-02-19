@@ -21,7 +21,8 @@ func (f *FirewallBackend) getChain(c string) (*nftables.Chain, error) {
 			return t, nil
 		}
 	}
-	return nil, fmt.Errorf("could not find chain [%s]", c)
+
+	return nil, fmt.Errorf(errNoSuchCahin, c)
 }
 
 func (f *FirewallBackend) getTable(c string) (*nftables.Table, error) {
@@ -39,21 +40,39 @@ func (f *FirewallBackend) getTable(c string) (*nftables.Table, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("could not find table [%s]", c)
+	return nil, fmt.Errorf(errNoSuchTable, c)
 }
 
-func (f *FirewallBackend) createIPv4Chain(table, chain, chainType string, hookType int) (*nftables.Table, *nftables.Chain, error) {
+func (f *FirewallBackend) CreateIPv4Table(table string) error {
+	_, err := f.getTable(table)
+	if err != nil {
+		if !strings.HasPrefix(err.Error(), "could not find table") {
+			return err
+		}
+	}
+
+	f.Lock()
+	defer f.Unlock()
+
+	f.nft.AddTable(&nftables.Table{
+		Name:   table,
+		Family: nftables.TableFamilyIPv4,
+	})
+
+	err = f.nft.Flush()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (f *FirewallBackend) CreateIPv4Chain(table, chain, chainType string, hookType int) error {
 	nt, err := f.getTable(table)
 	if err != nil {
 		if !strings.HasPrefix(err.Error(), "could not find table") {
-			return nil, nil, err
+			return err
 		}
-		f.Lock()
-		nt = f.nft.AddTable(&nftables.Table{
-			Name:   table,
-			Family: nftables.TableFamilyIPv4,
-		})
-		f.Unlock()
 	}
 
 	// We should build cases on this in the future should we need to add
@@ -62,6 +81,10 @@ func (f *FirewallBackend) createIPv4Chain(table, chain, chainType string, hookTy
 	switch chainType {
 	case string(nftables.ChainTypeFilter):
 		cT = nftables.ChainTypeFilter
+	case string(nftables.ChainTypeNAT):
+		cT = nftables.ChainTypeNAT
+	case string(nftables.ChainTypeRoute):
+		cT = nftables.ChainTypeRoute
 	}
 
 	// same here, we should add additional hook ypes if we need
@@ -71,39 +94,42 @@ func (f *FirewallBackend) createIPv4Chain(table, chain, chainType string, hookTy
 		hT = nftables.ChainHookOutput
 	case int(nftables.ChainHookInput):
 		hT = nftables.ChainHookInput
+	case int(nftables.ChainHookPrerouting):
+		hT = nftables.ChainHookPrerouting
+	case int(nftables.ChainHookForward):
+		hT = nftables.ChainHookForward
 	}
 
-	nc, err := f.getChain(chain)
+	_, err = f.getChain(chain)
 	if err != nil {
 		if !strings.HasPrefix(err.Error(), "could not find chain") {
-			return nil, nil, err
+			return err
 		}
-		f.Lock()
-		// drop by default.
-		// If somehow the reject tailing rule is skipped,
-		// this will introduced timeouts for processes
-		// that request to access an non-authorized ip.
-		outputPolicy := nftables.ChainPolicyDrop
-		nc = f.nft.AddChain(&nftables.Chain{
-			Name:     chain,
-			Table:    nt,
-			Type:     cT,
-			Hooknum:  hT,
-			Priority: nftables.ChainPriorityFilter,
-			Policy:   &outputPolicy,
-		})
-		f.Unlock()
 	}
 
 	f.Lock()
 	defer f.Unlock()
 
+	// drop by default.
+	// If somehow the reject tailing rule is skipped,
+	// this will introduced timeouts for processes
+	// that request to access an non-authorized ip.
+	outputPolicy := nftables.ChainPolicyDrop
+	f.nft.AddChain(&nftables.Chain{
+		Name:     chain,
+		Table:    nt,
+		Type:     cT,
+		Hooknum:  hT,
+		Priority: nftables.ChainPriorityFilter,
+		Policy:   &outputPolicy,
+	})
+
 	err = f.nft.Flush()
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
-	return nt, nc, nil
+	return nil
 }
 
 func (f *FirewallBackend) createChainInputWithEstablished(table *nftables.Table, chain *nftables.Chain) error {
@@ -186,10 +212,10 @@ func (f *FirewallBackend) createChainInputWithEstablished(table *nftables.Table,
 	return f.nft.Flush()
 }
 
-// AddRejectVerdict is responsible for appending a reject verdict at the end of the chain. If reject verdict
+// AddTailingReject is responsible for appending a reject verdict at the end of the chain. If reject verdict
 // is not a tailing verdict it will move it at the end by first creating a new reject verdict at the end of
 // the chain and then deleting the existing one
-func (f *FirewallBackend) AddRejectVerdict() error {
+func (f *FirewallBackend) AddTailingReject() error {
 	f.Lock()
 	rules, err := f.nft.GetRule(f.table, f.chain)
 	f.Unlock()

@@ -18,15 +18,35 @@ type FirewallBackend struct {
 }
 
 // NewFirewallBackend for creating a new nftables FirewaBackend
-func NewFirewallBackend(t, c string, logger *logrus.Logger) (*FirewallBackend, error) {
+func NewFirewallBackend(t, c string, l *logrus.Logger) (*FirewallBackend, error) {
 	firewallBackend := &FirewallBackend{
-		logger:    logger,
+		logger:    l,
 		nft:       &nftables.Conn{},
 		tableName: t,
 		chainName: c,
 	}
 
-	nt, nc, err := firewallBackend.createIPv4Chain(t, c, string(nftables.ChainTypeFilter), int(nftables.ChainHookOutput))
+	err := firewallBackend.CreateIPv4Table(t)
+	if err != nil {
+		return nil, err
+	}
+
+	nt, err := firewallBackend.getTable(t)
+	if err != nil {
+		return nil, err
+	}
+
+	err = firewallBackend.CreateIPv4Chain(
+		t,
+		c,
+		string(nftables.ChainTypeFilter),
+		int(nftables.ChainHookOutput),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	nc, err := firewallBackend.getChain(c)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +54,27 @@ func NewFirewallBackend(t, c string, logger *logrus.Logger) (*FirewallBackend, e
 	firewallBackend.table = nt
 	firewallBackend.chain = nc
 
-	nti, nci, err := firewallBackend.createIPv4Chain(t, "input", string(nftables.ChainTypeFilter), int(nftables.ChainHookInput))
+	err = firewallBackend.CreateIPv4Table(t)
+	if err != nil {
+		return nil, err
+	}
+
+	nti, err := firewallBackend.getTable(t)
+	if err != nil {
+		return nil, err
+	}
+
+	err = firewallBackend.CreateIPv4Chain(
+		t,
+		"input",
+		string(nftables.ChainTypeFilter),
+		int(nftables.ChainHookInput),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	nci, err := firewallBackend.getChain("input")
 	if err != nil {
 		return nil, err
 	}

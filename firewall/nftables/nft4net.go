@@ -50,7 +50,7 @@ func (f *FirewallBackend) getIPv4NetworkRule(cidr string) (*nftables.Rule, error
 		}
 	}
 
-	return nil, fmt.Errorf("could not find network rule with cidr [%s]", cidr)
+	return nil, fmt.Errorf(errNotSuchIPv4NetRule, cidr)
 }
 
 // AddIPv4NetworkRule for whitelisting an IPv4 network in the chain. Should be used on initial setup and

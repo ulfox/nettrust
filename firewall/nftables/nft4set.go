@@ -45,11 +45,11 @@ func (f *FirewallBackend) getIPv4SetRule(n string) (*nftables.Rule, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("could not find set rule with name [%s]", n)
+	return nil, fmt.Errorf(errNoSuchIPv4SetRule, n)
 }
 
-// GetIPV4SetHosts return a slice of all hosts from a set
-func (f *FirewallBackend) GetIPV4SetHosts(s string) ([]net.IP, error) {
+// GetIPv4AuthorizedHosts return a slice of all hosts from a set
+func (f *FirewallBackend) GetIPv4AuthorizedHosts(s string) ([]net.IP, error) {
 	set, err := f.getIPv4Set(s)
 	if err != nil {
 		return nil, err
@@ -149,7 +149,7 @@ func (f *FirewallBackend) AddIPv4ToSetRule(n, ip string) error {
 
 	netIP := net.ParseIP(ip).To4()
 	if netIP == nil {
-		return fmt.Errorf("[%s] does not appear to be a valid ipv4 ipaddr", ip)
+		return fmt.Errorf(errNotValidIPv4Addr, ip)
 	}
 
 	f.Lock()
@@ -179,7 +179,7 @@ func (f *FirewallBackend) DeleteIPv4FromSetRule(n, ip string) error {
 
 	netIP := net.ParseIP(ip).To4()
 	if netIP == nil {
-		return fmt.Errorf("[%s] does not appear to be a valid ipv4 ipaddr", ip)
+		return fmt.Errorf(errNotValidIPv4Addr, ip)
 	}
 
 	f.Lock()

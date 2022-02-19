@@ -64,7 +64,7 @@ func NewAuthorizer(
 		return nil, nil, err
 	}
 
-	hosts, err := authorizer.fw.GetIPV4SetHosts(authorizedSet)
+	hosts, err := authorizer.fw.GetIPv4AuthorizedHosts(authorizedSet)
 	if err != nil {
 		log.Fatal(err)
 	}

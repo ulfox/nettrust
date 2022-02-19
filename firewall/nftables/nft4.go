@@ -30,14 +30,14 @@ func (f *FirewallBackend) getIPv4Rule(ip string) (*nftables.Rule, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("could not find rule with ip [%s]", ip)
+	return nil, fmt.Errorf(errNotSuchIPv4AddrRule, ip)
 }
 
 // AddIPv4Rule for adding IPv4 rules in the chain, should never be used after initial chain setup
 func (f *FirewallBackend) AddIPv4Rule(ip string) error {
 	netIP := net.ParseIP(ip).To4()
 	if netIP == nil {
-		return fmt.Errorf("[%s] does not appear to be a valid ipv4 ipaddr", ip)
+		return fmt.Errorf(errNotValidIPv4Addr, ip)
 	}
 
 	_, err := f.getIPv4Rule(ip)
@@ -80,7 +80,7 @@ func (f *FirewallBackend) AddIPv4Rule(ip string) error {
 func (f *FirewallBackend) DeleteIPv4Rule(ip string) error {
 	netIP := net.ParseIP(ip).To4()
 	if netIP == nil {
-		return fmt.Errorf("[%s] does not appear to be a valid ipv4 ipaddr", ip)
+		return fmt.Errorf(errNotValidIPv4Addr, ip)
 	}
 
 	r, err := f.getIPv4Rule(ip)
