@@ -43,6 +43,7 @@ func (f *FirewallBackend) getTable(c string) (*nftables.Table, error) {
 	return nil, fmt.Errorf(errNoSuchTable, c)
 }
 
+// CreateIPv4Table create an nftables table
 func (f *FirewallBackend) CreateIPv4Table(table string) error {
 	_, err := f.getTable(table)
 	if err != nil {
@@ -67,6 +68,7 @@ func (f *FirewallBackend) CreateIPv4Table(table string) error {
 	return nil
 }
 
+// CreateIPv4Chain create an nftables chain in a specific table
 func (f *FirewallBackend) CreateIPv4Chain(table, chain, chainType string, hookType int) error {
 	nt, err := f.getTable(table)
 	if err != nil {
