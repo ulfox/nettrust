@@ -32,6 +32,10 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 
 	question = s.cache.Question(req)
 
+	if s.cache.GetTTL() <= 0 {
+		goto forwardUpstream
+	}
+
 	if isCached := s.cache.Exists(req); isCached {
 		if hasExpired := s.cache.HasExpired(req); hasExpired {
 			s.cache.Delete(s.cache.Question(req))
@@ -68,9 +72,11 @@ forwardUpstream:
 		return
 	}
 
-	err = s.pushToCache(resp)
-	if err != nil {
-		s.fwdl.Error(err)
+	if s.cache.GetTTL() > 0 {
+		err = s.pushToCache(resp)
+		if err != nil {
+			s.fwdl.Error(err)
+		}
 	}
 
 tellClient:
