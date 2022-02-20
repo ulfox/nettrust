@@ -31,6 +31,41 @@ func NewCache(ttl int) *Queries {
 	}
 }
 
+// NewResolved replaces current cache.resolved map with a new map
+// by copying all the elements. We  this to free up memory, since
+// the allocated memory by cache.resolved is that that the map had at
+// its peak
+func (c *Queries) NewResolved() {
+	c.Lock()
+	defer c.Unlock()
+
+	newMap := make(map[string]Answered)
+
+	for k, v := range c.resolved {
+		newMap[k] = v
+	}
+
+	c.resolved = nil
+	c.resolved = newMap
+}
+
+// NewNX replaces current cache.nx map with a new map
+// by copying all the elements. See cache.NewResolved
+// for additional information
+func (c *Queries) NewNX() {
+	c.Lock()
+	defer c.Unlock()
+
+	newMap := make(map[string]time.Time)
+
+	for k, v := range c.nx {
+		newMap[k] = v
+	}
+
+	c.nx = nil
+	c.nx = newMap
+}
+
 // GetTTL return cache.ttl value
 func (c *Queries) GetTTL() int {
 	return c.ttl

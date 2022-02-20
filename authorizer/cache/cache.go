@@ -20,6 +20,24 @@ func NewCache(ttl int) *Authorized {
 	}
 }
 
+// NewAuthMap replaces current cache.Hosts map with a new map
+// by copying all the elements. We  this to free up memory, since
+// the allocated memory by cache.Hosts is that that the map had at
+// its peak
+func (c *Authorized) NewAuthMap() {
+	c.Lock()
+	defer c.Unlock()
+
+	newMap := make(map[string]time.Time)
+
+	for k, v := range c.Hosts {
+		newMap[k] = v
+	}
+
+	c.Hosts = nil
+	c.Hosts = newMap
+}
+
 // Exists (blocking) returns true if a host is in cache
 func (c *Authorized) Exists(h string) bool {
 	c.Lock()

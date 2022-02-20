@@ -73,10 +73,14 @@ func (s *Server) dnsTTLCacheManager() (*ServiceContext, error) {
 					l.Debugf("Deleting host [%s] from cache", h)
 					s.cache.Delete(h)
 				}
+				l.Debugf("Freeing up DNS Cache memory")
+				s.cache.NewResolved()
 				for _, h := range s.cache.ExpiredMXQueries() {
 					l.Debugf("Deleting host [%s] from NX cache", h)
 					s.cache.DeleteNX(h)
 				}
+				l.Debugf("Freeing up DNS NX Cache memory")
+				s.cache.NewNX()
 			default:
 				time.Sleep(time.Millisecond * 50)
 			}
