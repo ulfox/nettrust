@@ -253,11 +253,15 @@ func (f *FirewallBackend) AddTailingReject() error {
 				}
 
 				f.Lock()
-				f.nft.DelRule(&nftables.Rule{
+				err = f.nft.DelRule(&nftables.Rule{
 					Table:  f.table,
 					Chain:  f.chain,
 					Handle: r.Handle,
 				})
+
+				if err != nil {
+					return err
+				}
 
 				err = f.nft.Flush()
 				f.Unlock()
