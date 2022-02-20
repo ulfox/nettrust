@@ -91,7 +91,7 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		"How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)",
 	)
 	fileCFG := flag.String("config", "", "Path to config.json")
-	dnsTTLCache := flag.Int("dns-ttl-cache", 0, "Number of seconds dns queries stay in cache")
+	dnsTTLCache := flag.Int("dns-ttl-cache", 0, "Number of seconds dns queries stay in cache (-1 to disable caching)")
 
 	flag.Parse()
 

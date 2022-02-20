@@ -208,6 +208,8 @@ Usage of ./bin/nettrust:
     	Number of seconds a authorized host will be active before NetTrust expires it and expect a DNS query again (-1 do not expire)
   -config string
     	Path to config.json
+  -dns-ttl-cache int
+    	Number of seconds dns queries stay in cache (-1 to disable caching)
   -do-not-flush-authorized-hosts
     	Do not clean up the authorized hosts list on exit. Use this together with do-not-flush-table to keep the NetTrust table as is on exit
   -do-not-flush-table
