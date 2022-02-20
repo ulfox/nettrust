@@ -260,7 +260,12 @@ You can also use a json config to set options.
     "fwdTLS": false,
 
     "listenAddr": "127.0.0.1:53",
+    "listenTLS": false,
+    "listenCert": "",
+    "listenCertKey": "",
     "firewallType": "nftables",
+
+    "dnsTTLCache": -1,
 
     "whitelistLoEnabled": true,
     "whitelistPrivateEnabled": true,
