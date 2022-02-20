@@ -4,7 +4,6 @@
 
 - Check chains priority and ensure NetTrust Chain has high priority in the related table
 - Make nftable module more dynamic. Add DNAT & SNAT filtering. Add jump rules, enable logging
-- Handle authorizer and dns cache maps differently. Currently the allocated memory on each map will be that of the map when it had the maximum number of elements during the runtime. This is not a memleak, but how maps work. However, NetTrust should be able to run on devices with limited memory, and due to that, we need to ensure that such devices will be able to free up memory after peaks
 
 ## Features
 
