@@ -18,7 +18,7 @@
     "listenCertKey": "",
     "firewallType": "nftables",
 
-    "dnsTTLCache": 30,
+    "dnsTTLCache": -1,
 
     "whitelistLoEnabled": true,
     "whitelistPrivateEnabled": true,

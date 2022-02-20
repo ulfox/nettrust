@@ -21,4 +21,8 @@ packages
 dns.pem
 dns.key
 dev
+load-test.sh
+heap.out
+*.pdf
+memleak.sh
 

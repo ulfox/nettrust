@@ -31,6 +31,11 @@ func NewCache(ttl int) *Queries {
 	}
 }
 
+// GetTTL return cache.ttl value
+func (c *Queries) GetTTL() int {
+	return c.ttl
+}
+
 // Question returns dns.Msg.Question[0].Name from a given dns message
 func (c *Queries) Question(msg *dns.Msg) string {
 	return strings.TrimSuffix(msg.Question[0].Name, ".")
@@ -193,15 +198,15 @@ func (c *Queries) ExpiredMXQueries() []string {
 }
 
 // Delete (blocking) for deleting a question from cache
-func (c *Queries) Delete(msg *dns.Msg) {
+func (c *Queries) Delete(h string) {
 	c.Lock()
 	defer c.Unlock()
-	delete(c.resolved, c.Question(msg))
+	delete(c.resolved, h)
 }
 
 // DeleteNX (blocking) for deleting a question from NX cache
-func (c *Queries) DeleteNX(msg *dns.Msg) {
+func (c *Queries) DeleteNX(h string) {
 	c.Lock()
 	defer c.Unlock()
-	delete(c.nx, c.Question(msg))
+	delete(c.nx, h)
 }

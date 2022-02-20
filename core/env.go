@@ -219,7 +219,7 @@ func GetNetTrustEnv() (*NetTrust, error) {
 	}
 
 	if *dnsTTLCache == 0 && config.DNSTTLCache == 0 {
-		config.DNSTTLCache = 30
+		config.DNSTTLCache = -1
 	} else if *dnsTTLCache != 0 {
 		config.DNSTTLCache = *dnsTTLCache
 	}

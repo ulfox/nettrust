@@ -11,6 +11,7 @@ var (
 	errCacheFetch          string = "[Cache] something went wrong, could not fetch dns object from cache for question: %s"
 	errCacheRegister       string = "[Cache] could not register dns object with question %s to cache"
 	errCacheCoulndNotRenew string = "[Cache] could not renew object for question %s"
+	errNil                 string = "cache has not been initialized, starting ttl cache checker is forbidden"
 	warnFWDTLSPort         string = "forward tls is enabled but port is set to 53"
 	infoCacheObjExpired    string = "[Cache] dns cache object with question %s has expired, asking upstream"
 	infoCacheObjFound      string = "[Cache] found dns object in cache for question %s"

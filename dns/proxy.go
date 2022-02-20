@@ -8,6 +8,7 @@ import (
 )
 
 func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) error) {
+
 	if len(req.Question) == 0 {
 		s.qErr(w, req, fmt.Errorf(errQuery))
 		return
@@ -33,7 +34,7 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 
 	if isCached := s.cache.Exists(req); isCached {
 		if hasExpired := s.cache.HasExpired(req); hasExpired {
-			s.cache.Delete(req)
+			s.cache.Delete(s.cache.Question(req))
 			s.fwdl.Debugf(infoCacheObjExpired, question)
 			goto forwardUpstream
 		}
@@ -56,7 +57,7 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 			goto tellClient
 		}
 
-		s.cache.DeleteNX(req)
+		s.cache.DeleteNX(s.cache.Question(req))
 		s.fwdl.Debugf(infoCacheObjExpired, question)
 	}
 

@@ -3,6 +3,7 @@ package dns
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"sync"
 	"time"
 
@@ -24,6 +25,65 @@ func (f *ServiceContext) Expire() {
 // Wait ensures that the goroutine has exit successfully
 func (f *ServiceContext) Wait() {
 	f.wg.Wait()
+}
+
+// dnsTTLCacheManager spawns a goroutine for checking cache for expired queries
+func (s *Server) dnsTTLCacheManager() (*ServiceContext, error) {
+	if s.cache == nil {
+		return nil, fmt.Errorf(errNil)
+	}
+
+	s.logger.WithFields(logrus.Fields{
+		"Component": "DNS Cache",
+		"Stage":     "Init",
+	}).Info("Starting DNS TTL Cache Manager")
+
+	dnsCacheContext := &ServiceContext{}
+
+	var serviceWG sync.WaitGroup
+	dnsCacheContext.wg = &serviceWG
+
+	ctx, cancel := context.WithCancel(context.Background())
+	dnsCacheContext.cancel = cancel
+
+	serviceWG.Add(1)
+	go func(ctx context.Context, wg *sync.WaitGroup, l *logrus.Entry) {
+		l = l.WithFields(logrus.Fields{
+			"Component": "DNS Cache",
+			"Stage":     "Cache Watcher",
+		})
+		ticker := time.NewTicker(30 * time.Second)
+		for {
+			select {
+			case <-ctx.Done():
+				l = l.WithFields(logrus.Fields{
+					"Component": "DNS Cache",
+					"Stage":     "Term",
+				})
+
+				l.Info("Bye!")
+				wg.Done()
+				return
+			case <-ticker.C:
+				if s.cache.GetTTL() < 0 {
+					break
+				}
+				l.Debug("Checking DNS Cache")
+				for _, h := range s.cache.ExpiredQueries() {
+					l.Debugf("Deleting host [%s] from cache", h)
+					s.cache.Delete(h)
+				}
+				for _, h := range s.cache.ExpiredMXQueries() {
+					l.Debugf("Deleting host [%s] from NX cache", h)
+					s.cache.DeleteNX(h)
+				}
+			default:
+				time.Sleep(time.Millisecond * 50)
+			}
+		}
+	}(ctx, &serviceWG, s.fwdl)
+
+	return dnsCacheContext, nil
 }
 
 // UDPListenBackground for spawning a udp DNS Server
@@ -77,6 +137,8 @@ func (s *Server) UDPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 				if err := srv.Shutdown(); err != nil {
 					l.Fatal(err)
 				}
+				s.cacheContext.Expire()
+				s.cacheContext.Wait()
 				l.Info("Bye!")
 				wg.Done()
 				return
@@ -155,6 +217,8 @@ func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 				if err := srv.Shutdown(); err != nil {
 					l.Fatal(err)
 				}
+				s.cacheContext.Expire()
+				s.cacheContext.Wait()
 				l.Info("Bye!")
 				wg.Done()
 				return

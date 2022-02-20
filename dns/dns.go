@@ -31,6 +31,7 @@ type Server struct {
 	cancelOnErr                   context.CancelFunc
 	ctxOnErr                      context.Context
 	cache                         *qc.Queries
+	cacheContext                  *ServiceContext
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
@@ -107,6 +108,11 @@ func NewDNSServer(
 	})
 
 	server.ctxOnErr, server.cancelOnErr = context.WithCancel(context.Background())
+
+	server.cacheContext, err = server.dnsTTLCacheManager()
+	if err != nil {
+		return nil, err
+	}
 
 	return server, nil
 }
