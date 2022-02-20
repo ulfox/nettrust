@@ -20,7 +20,6 @@
 - Add DNSSec
 - Add IPTables Support (iptables-legacy, iptables-nft)
 - Add option to use a KV store for keeping host tracking information
-- Use conntrack to check connection info (for example, expire a whitelisted hosts sooner if the connection has been terminated)
 - Use conntrack to check and react on connections that open and are not part of NetTrust whitelisted hosts
 - Conntrack Hosts & ttl metrics
 - Add option to handle A/AAA zones instead of forwarding all requests
