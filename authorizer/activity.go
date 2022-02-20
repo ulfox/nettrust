@@ -53,7 +53,7 @@ func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 				if !f.doNotFlushAuthorizedHosts {
 					for h := range f.cache.Hosts {
 						l.Infof("Removing host [%s] from firewall rules", h)
-						err := f.fw.DeleteIPv4FromSetRule(f.authorizedSet, h)
+						err := f.fw.DeleteIPv4FromAuthorizedList(f.authorizedSet, h)
 						if err != nil {
 							l.Error(err)
 						}
@@ -88,7 +88,7 @@ func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 					// Blocking call, but we expect this to be fast to mitigate any wait that
 					// RequestHandler may encounter
 					l.Debugf("Host [%s] has expired. Removing from firewall rules", h)
-					err := f.fw.DeleteIPv4FromSetRule(f.authorizedSet, h)
+					err := f.fw.DeleteIPv4FromAuthorizedList(f.authorizedSet, h)
 					if err != nil {
 						l.Error(err)
 					}

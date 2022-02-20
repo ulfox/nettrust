@@ -10,10 +10,10 @@ import (
 	"os"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/miekg/dns"
 	"github.com/sirupsen/logrus"
+	qc "github.com/ulfox/nettrust/dns/cache"
 )
 
 // Server defines NetTrust DNS Server proxy. The server invokes firewall calls also
@@ -22,6 +22,7 @@ type Server struct {
 
 	listenAddr, fwdAddr, fwdProto string
 	listenTLS, fwdTLS, sigOnce    bool
+	dnsTTLCache                   int
 	listenCerts                   *tls.Certificate
 	logger                        *logrus.Logger
 	fwdl                          *logrus.Entry
@@ -29,10 +30,17 @@ type Server struct {
 	udpServer, tcpServer          *dns.Server
 	cancelOnErr                   context.CancelFunc
 	ctxOnErr                      context.Context
+	cache                         *qc.Queries
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
-func NewDNSServer(laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCert string, listenTLS, fwdTLS bool, logger *logrus.Logger) (*Server, error) {
+func NewDNSServer(
+	laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCert string,
+	listenTLS, fwdTLS bool,
+	dnsTTLCache int,
+	logger *logrus.Logger,
+) (*Server, error) {
+
 	if laddr == "" || faddr == "" {
 		return nil, fmt.Errorf(errFWDNSAddr)
 	}
@@ -74,13 +82,15 @@ func NewDNSServer(laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCer
 	}
 
 	server := &Server{
-		listenAddr: laddr,
-		listenTLS:  listenTLS,
-		fwdAddr:    faddr,
-		fwdProto:   fwdProto,
-		fwdTLS:     fwdTLS,
-		logger:     logger,
-		client:     client,
+		listenAddr:  laddr,
+		listenTLS:   listenTLS,
+		fwdAddr:     faddr,
+		fwdProto:    fwdProto,
+		fwdTLS:      fwdTLS,
+		dnsTTLCache: dnsTTLCache,
+		logger:      logger,
+		client:      client,
+		cache:       qc.NewCache(dnsTTLCache),
 	}
 
 	if listenTLS {
@@ -136,193 +146,4 @@ func (s *Server) killOnErr() {
 	if err != nil {
 		s.fwdl.Error(err)
 	}
-}
-
-// ServiceContext for canceling goroutins
-type ServiceContext struct {
-	cancel context.CancelFunc
-	wg     *sync.WaitGroup
-}
-
-// Expire will call cancel to terminate a context immediately, causing the goroutine to exit
-func (f *ServiceContext) Expire() {
-	f.cancel()
-}
-
-// Wait ensures that the goroutine has exit successfully
-func (f *ServiceContext) Wait() {
-	f.wg.Wait()
-}
-
-// UDPListenBackground for spawning a udp DNS Server
-func (s *Server) UDPListenBackground(fn func(resp *dns.Msg) error) *ServiceContext {
-	s.logger.WithFields(logrus.Fields{
-		"Component": "DNS Server",
-		"Stage":     "Init",
-	}).Info("Starting UDP DNS Server")
-
-	dnsServerContext := &ServiceContext{}
-
-	var serviceListenerWG sync.WaitGroup
-	dnsServerContext.wg = &serviceListenerWG
-
-	ctxListener, cancelListener := context.WithCancel(context.Background())
-	dnsServerContext.cancel = cancelListener
-
-	s.udpServer = &dns.Server{
-		Addr: s.listenAddr, Net: "udp",
-		Handler: dns.HandlerFunc(
-			func(w dns.ResponseWriter, r *dns.Msg) {
-				s.fwd(w, r, fn)
-			},
-		),
-	}
-
-	serviceListenerWG.Add(1)
-	go func(wg *sync.WaitGroup, srv *dns.Server) {
-		l := s.logger.WithFields(logrus.Fields{
-			"Component": "[UDP] DNSServer",
-			"Stage":     "Init",
-		})
-
-		l.Info("Starting")
-		if err := srv.ListenAndServe(); err != nil {
-			l.Error(err)
-		}
-		wg.Done()
-	}(&serviceListenerWG, s.udpServer)
-
-	serviceListenerWG.Add(1)
-	go func(ctx, ctxOnErr context.Context, wg *sync.WaitGroup, srv *dns.Server) {
-		l := s.logger.WithFields(logrus.Fields{
-			"Component": "[UDP] DNSServer",
-			"Stage":     "Term",
-		})
-
-		for {
-			select {
-			case <-ctx.Done():
-				if err := srv.Shutdown(); err != nil {
-					l.Fatal(err)
-				}
-				l.Info("Bye!")
-				wg.Done()
-				return
-			case <-ctxOnErr.Done():
-				s.killOnErr()
-			default:
-				time.Sleep(time.Millisecond * 50)
-			}
-		}
-	}(ctxListener, s.ctxOnErr, &serviceListenerWG, s.udpServer)
-
-	return dnsServerContext
-}
-
-// TCPListenBackground for spawning a tcp DNS Server
-func (s *Server) TCPListenBackground(fn func(resp *dns.Msg) error) *ServiceContext {
-	s.logger.WithFields(logrus.Fields{
-		"Component": "DNS Server",
-		"Stage":     "Init",
-	}).Info("Starting TCP DNS Server")
-
-	dnsServerContext := &ServiceContext{}
-
-	var serviceListenerWG sync.WaitGroup
-	dnsServerContext.wg = &serviceListenerWG
-
-	ctxListener, cancelListener := context.WithCancel(context.Background())
-	dnsServerContext.cancel = cancelListener
-
-	s.tcpServer = &dns.Server{
-		Addr: s.listenAddr, Net: "tcp",
-		Handler: dns.HandlerFunc(
-			func(w dns.ResponseWriter, r *dns.Msg) {
-				s.fwd(w, r, fn)
-			},
-		),
-	}
-
-	serviceListenerWG.Add(1)
-	go func(wg *sync.WaitGroup, srv *dns.Server) {
-		l := s.logger.WithFields(logrus.Fields{
-			"Component": "[TCP] DNSServer",
-			"Stage":     "Init",
-		})
-
-		if s.listenTLS {
-			l = s.logger.WithFields(logrus.Fields{
-				"Component": "[TLS] DNSServer",
-				"Stage":     "Init",
-			})
-
-			srv.TLSConfig = &tls.Config{
-				Certificates: []tls.Certificate{*s.listenCerts},
-			}
-
-			srv.Net = "tcp-tls"
-		}
-
-		l.Info("Starging")
-
-		if err := srv.ListenAndServe(); err != nil {
-			l.Error(err)
-		}
-		wg.Done()
-	}(&serviceListenerWG, s.tcpServer)
-
-	serviceListenerWG.Add(1)
-	go func(ctx, ctxOnErr context.Context, wg *sync.WaitGroup, srv *dns.Server) {
-		l := s.logger.WithFields(logrus.Fields{
-			"Component": "[TCP] DNSServer",
-			"Stage":     "Term",
-		})
-		for {
-			select {
-			case <-ctx.Done():
-				if err := srv.Shutdown(); err != nil {
-					l.Fatal(err)
-				}
-				l.Info("Bye!")
-				wg.Done()
-				return
-			case <-ctxOnErr.Done():
-				s.killOnErr()
-			default:
-				time.Sleep(time.Millisecond * 50)
-			}
-		}
-	}(ctxListener, s.ctxOnErr, &serviceListenerWG, s.tcpServer)
-
-	return dnsServerContext
-}
-
-func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) error) {
-	if len(req.Question) == 0 {
-		dns.HandleFailed(w, req)
-		s.qErr(w, req, fmt.Errorf(errQuery))
-		return
-	}
-
-	resp, _, err := s.client.Exchange(req, s.fwdAddr)
-	if err != nil {
-		s.qErr(w, req, err)
-		return
-	}
-
-	err = fn(resp)
-	if err != nil {
-		s.qErr(w, req, err)
-		return
-	}
-
-	err = w.WriteMsg(resp)
-	if err != nil {
-		s.qErr(w, req, err)
-	}
-}
-
-func (s *Server) qErr(w dns.ResponseWriter, req *dns.Msg, err error) {
-	s.fwdl.Error(err)
-	dns.HandleFailed(w, req)
 }

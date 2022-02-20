@@ -61,6 +61,7 @@ func main() {
 		config.FWDCaCert,
 		config.ListenTLS,
 		config.FWDTLS,
+		config.DNSTTLCache,
 		logger,
 	)
 	if err != nil {

@@ -37,6 +37,7 @@ type NetTrust struct {
 	WhitelistPrivate          []string
 	AuthorizedTTL             int `json:"ttl"`
 	TTLCheckTicker            int `json:"ttlInterval"`
+	DNSTTLCache               int `json:"dnsTTLCache"`
 }
 
 // GetNetTrustEnv will read environ and create a map of k:v from envs
@@ -90,6 +91,8 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		"How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)",
 	)
 	fileCFG := flag.String("config", "", "Path to config.json")
+	dnsTTLCache := flag.Int("dns-ttl-cache", 0, "Number of seconds dns queries stay in cache")
+
 	flag.Parse()
 
 	var key string
@@ -213,6 +216,12 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		config.TTLCheckTicker = 30
 	} else if *ttlCheckTicker != 0 {
 		config.TTLCheckTicker = *ttlCheckTicker
+	}
+
+	if *dnsTTLCache == 0 && config.DNSTTLCache == 0 {
+		config.DNSTTLCache = 30
+	} else if *dnsTTLCache != 0 {
+		config.DNSTTLCache = *dnsTTLCache
 	}
 
 	if *whitelistLoopback || config.WhitelistLoEnabled {

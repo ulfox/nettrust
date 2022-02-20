@@ -18,7 +18,7 @@ func emptyStringE(s string) error {
 func CheckIPV4SocketAddress(address string) error {
 	strSlice := strings.Split(address, ":")
 	if len(strSlice) != 2 {
-		return fmt.Errorf("address [%s] is not valid. Expected ip:port", address)
+		return fmt.Errorf(errInvalidSocketAddress, address)
 	}
 
 	if es := emptyStringE(strSlice[0]); es != nil {
@@ -34,7 +34,7 @@ func CheckIPV4SocketAddress(address string) error {
 	}
 
 	if port < 1 || port > 65535 {
-		return fmt.Errorf("invalid port [%d] number", port)
+		return fmt.Errorf(errInvalidPort, port)
 	}
 
 	if err := CheckIPV4Addresses(strSlice[0]); err != nil {
@@ -55,7 +55,7 @@ func CheckIPV4Addresses(addr string) error {
 			return err
 		}
 		if octInt < 0 || octInt > 255 {
-			return fmt.Errorf("not a valid ipv4 address [%s]", addr)
+			return fmt.Errorf(errNotValidIPv4Addr, addr)
 		}
 	}
 
@@ -77,7 +77,7 @@ func CheckIPV4Network(addr string) error {
 	}
 
 	if cidr < 0 || cidr > 32 {
-		return fmt.Errorf("not a valid ipv4 network [%s]", addr)
+		return fmt.Errorf(errNotValidIPv4Network, addr)
 	}
 
 	return nil
