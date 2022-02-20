@@ -170,8 +170,8 @@ func (f *FirewallBackend) AddIPv4ToSetRule(n, ip string) error {
 	return f.nft.Flush()
 }
 
-// DeleteIPv4FromSetRule for deleting an IPv4 host from a set
-func (f *FirewallBackend) DeleteIPv4FromSetRule(n, ip string) error {
+// DeleteIPv4FromAuthorizedList for deleting an IPv4 host from a set
+func (f *FirewallBackend) DeleteIPv4FromAuthorizedList(n, ip string) error {
 	set, err := f.getIPv4Set(n)
 	if err != nil {
 		return err

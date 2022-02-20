@@ -17,7 +17,7 @@ type Backend interface {
 	AddIPv4Set(n string) error
 	AddIPv4SetRule(n string) error
 	AddIPv4ToSetRule(n, ip string) error
-	DeleteIPv4FromSetRule(n, ip string) error
+	DeleteIPv4FromAuthorizedList(n, ip string) error
 	AddTailingReject() error
 	FlushTable(t string) error
 	DeleteChain(c string) error
