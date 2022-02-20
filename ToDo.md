@@ -7,7 +7,6 @@
 
 ## Features
 
-- Add DNS Cache. DNS Proxy should keep a cache to reduce latency
 - Cloud provider plugin
 - Add option for TLS Client authendication
 - Add eBPF filtering to allow NetTrust block packets before they enter the Kenrel network stack
