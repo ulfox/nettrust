@@ -235,7 +235,7 @@ func (f *FirewallBackend) AddTailingReject() error {
 			}
 
 			if i != (totalRules - 1) {
-				f.logger.Info("reject is not a tailing rule. Re-creating as tailing")
+				f.logger.Warn(warnRejectNotTailing)
 				f.Lock()
 				f.nft.AddRule(&nftables.Rule{
 					Table: f.table,
