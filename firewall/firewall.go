@@ -21,6 +21,7 @@ type Backend interface {
 	AddTailingReject() error
 	FlushTable(t string) error
 	DeleteChain(c string) error
+	DeleteTable(t string) error
 	GetIPv4AuthorizedHosts(s string) ([]net.IP, error)
 	CreateIPv4Table(t string) error
 	CreateIPv4Chain(t, c, ct string, ht int) error

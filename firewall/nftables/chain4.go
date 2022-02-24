@@ -321,3 +321,17 @@ func (f *FirewallBackend) DeleteChain(c string) error {
 
 	return f.nft.Flush()
 }
+
+func (f *FirewallBackend) DeleteTable(t string) error {
+	table, err := f.getTable(t)
+	if err != nil {
+		return err
+	}
+
+	f.Lock()
+	defer f.Unlock()
+
+	f.nft.DelTable(table)
+
+	return f.nft.Flush()
+}

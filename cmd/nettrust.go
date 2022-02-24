@@ -23,6 +23,7 @@ var (
 )
 
 func main() {
+
 	logger = logrus.New()
 	logger.SetFormatter(
 		&logrus.TextFormatter{FullTimestamp: true},
@@ -151,7 +152,12 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+		err = fw.DeleteTable(tableNameOutput)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
+
 }
 
 func makeDefaultRules(fw *firewall.Firewall, config *core.NetTrust) error {
