@@ -17,7 +17,7 @@ func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
 	question := resp.Question[0].Name
 
 	if resp.Rcode != dns.RcodeSuccess {
-		f.fwl.Infof(infoNotHandled, question)
+		f.fwl.Debugf(infoNotHandled, question)
 		return nil
 	}
 

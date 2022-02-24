@@ -38,6 +38,7 @@ func NewAuthorizer(
 	if err != nil {
 		return nil, nil, err
 	}
+
 	authorizer := &Authorizer{
 		logger: logger,
 		fwl: logger.WithFields(logrus.Fields{
