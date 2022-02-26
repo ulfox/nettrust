@@ -17,7 +17,6 @@ type Authorizer struct {
 	fwl                               *logrus.Entry
 	cache                             *cache.Authorized
 	conntrack                         *conntrack.Conn
-	activeHosts                       *map[string]struct{}
 	blacklistHosts, blacklistNetworks []string
 	ttl, ttlCheckTicker               int
 	authorizedSet                     string
@@ -53,7 +52,6 @@ func NewAuthorizer(
 		fw:                        fw,
 		cache:                     cache.NewCache(ttl),
 		conntrack:                 c,
-		activeHosts:               &map[string]struct{}{},
 		doNotFlushAuthorizedHosts: doNotFlushAuthorizedHosts,
 	}
 

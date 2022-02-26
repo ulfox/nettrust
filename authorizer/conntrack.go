@@ -5,8 +5,7 @@ import (
 	"strings"
 )
 
-// conntrackDump, not blocking for now. We may consider making this blocking to ensure that
-// f.activeHosts are protected from concurrent writes. For now, we expect f.activeHosts to
+// conntrackDump, not blocking for now. For now, we expect activeHosts to
 // be read only by ttl checker and written only by this method
 func (f *Authorizer) conntrackDump() (map[string]struct{}, error) {
 	if f.conntrack == nil {
