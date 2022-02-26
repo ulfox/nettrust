@@ -33,11 +33,6 @@ func NewAuthorizer(
 	fw *firewall.Firewall,
 	logger *logrus.Logger) (*Authorizer, *ServiceContext, error) {
 
-	c, err := conntrack.Dial(nil)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	authorizer := &Authorizer{
 		logger: logger,
 		fwl: logger.WithFields(logrus.Fields{
@@ -51,9 +46,16 @@ func NewAuthorizer(
 		authorizedSet:             authorizedSet,
 		fw:                        fw,
 		cache:                     cache.NewCache(ttl),
-		conntrack:                 c,
 		doNotFlushAuthorizedHosts: doNotFlushAuthorizedHosts,
 	}
+
+	c, err := conntrack.Dial(nil)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	authorizer.fwl.Debug("Opening Conntrack channel")
+	authorizer.conntrack = c
 
 	if authorizer.ttlCheckTicker < 1 {
 		return nil, nil, fmt.Errorf(errTTL)

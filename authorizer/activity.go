@@ -61,8 +61,12 @@ func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 					}
 				}
 
+				l.Debug("Closing Conntrack channel")
+				f.conntrack.Close()
+
 				l.Info("Bye!")
 				wg.Done()
+
 				return
 			case <-ticker.C:
 				if f.cache.TTL < 0 {
@@ -72,6 +76,7 @@ func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 				activeHosts, err := f.conntrackDump()
 				if err != nil {
 					l.Error(err)
+					continue
 				}
 
 				// Blocking call. If the expired hosts or cache is very big we may get dns bottleneck.
