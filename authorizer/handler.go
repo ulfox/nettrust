@@ -103,7 +103,7 @@ func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
 }
 
 func (f *Authorizer) authIPv4(question, ip string) error {
-	blacklisted, err := f.checkBlacklist(ip)
+	blacklisted, err := f.checkIPv4Blacklist(ip)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (f *Authorizer) authIPv4(question, ip string) error {
 	return nil
 }
 
-func (f *Authorizer) checkBlacklist(ip string) (bool, error) {
+func (f *Authorizer) checkIPv4Blacklist(ip string) (bool, error) {
 	// unsafe function, we are not checking string input for valid
 	// ip address. We should add a check here
 	for _, j := range f.blacklistHosts {
