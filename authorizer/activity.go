@@ -3,7 +3,6 @@ package authorizer
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"sync"
 	"time"
 
@@ -43,7 +42,6 @@ func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 	serviceWG.Add(1)
 	go func(ctx context.Context, wg *sync.WaitGroup, l *logrus.Entry) {
 		ticker := time.NewTicker(time.Duration(f.ttlCheckTicker) * time.Second)
-		gcTicker := time.NewTicker(30 * time.Second)
 		for {
 			select {
 			case <-ctx.Done():
@@ -103,9 +101,6 @@ func (f *Authorizer) ttlCacheChecker() (*ServiceContext, error) {
 				l.Debugf("Freeing up Authorizer Cache Memory")
 				f.cache.NewAuthMap()
 				activeHosts = nil
-			case <-gcTicker.C:
-				l.Debugf("Calling garbage collector. This will block queries")
-				runtime.GC()
 			default:
 				time.Sleep(time.Millisecond * 50)
 			}

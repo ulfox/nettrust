@@ -8,7 +8,7 @@ import (
 // conntrackDump, not blocking for now. We may consider making this blocking to ensure that
 // f.activeHosts are protected from concurrent writes. For now, we expect f.activeHosts to
 // be read only by ttl checker and written only by this method
-func (f *Authorizer) conntrackDump() (map[string]bool, error) {
+func (f *Authorizer) conntrackDump() (map[string]struct{}, error) {
 	if f.conntrack == nil {
 		return nil, fmt.Errorf(errNil)
 	}
@@ -18,7 +18,7 @@ func (f *Authorizer) conntrackDump() (map[string]bool, error) {
 		return nil, err
 	}
 
-	activeHosts := map[string]bool{}
+	activeHosts := map[string]struct{}{}
 
 	// This call is a bit slow on systems with a huge number of active connections, however it is a good
 	// way to ensure that we get in the map hosts that are part of source or destination
@@ -27,10 +27,10 @@ func (f *Authorizer) conntrackDump() (map[string]bool, error) {
 	// The good thing is that this call is not blocking. The ttl checker may hang while waiting for
 	// the activeHosts list, however during the wait, RequestHandler is free to call cache
 	for _, j := range df {
-		activeHosts[strings.Split(j.TupleOrig.IP.DestinationAddress.String(), ":")[0]] = true
-		activeHosts[strings.Split(j.TupleOrig.IP.SourceAddress.String(), ":")[0]] = true
-		activeHosts[strings.Split(j.TupleReply.IP.DestinationAddress.String(), ":")[0]] = true
-		activeHosts[strings.Split(j.TupleReply.IP.SourceAddress.String(), ":")[0]] = true
+		activeHosts[strings.Split(j.TupleOrig.IP.DestinationAddress.String(), ":")[0]] = struct{}{}
+		activeHosts[strings.Split(j.TupleOrig.IP.SourceAddress.String(), ":")[0]] = struct{}{}
+		activeHosts[strings.Split(j.TupleReply.IP.DestinationAddress.String(), ":")[0]] = struct{}{}
+		activeHosts[strings.Split(j.TupleReply.IP.SourceAddress.String(), ":")[0]] = struct{}{}
 	}
 
 	return activeHosts, nil
