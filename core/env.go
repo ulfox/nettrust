@@ -18,6 +18,7 @@ type NetTrust struct {
 	Blacklist struct {
 		Networks []string `json:"networks"`
 		Hosts    []string `json:"hosts"`
+		Domains  []string `json:"domains"`
 	} `json:"blacklist"`
 	Env                       map[string]string
 	DoNotFlushTable           bool   `json:"doNotFlushTable"`

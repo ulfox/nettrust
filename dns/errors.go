@@ -15,4 +15,5 @@ var (
 	warnFWDTLSPort         string = "forward tls is enabled but port is set to 53"
 	infoCacheObjExpired    string = "[Cache] dns cache object with question %s has expired, asking upstream"
 	infoCacheObjFound      string = "[Cache] found dns object in cache for question %s"
+	infoDomainBlacklist    string = "[Blacklisted] Question %s"
 )

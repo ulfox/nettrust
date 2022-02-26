@@ -8,7 +8,6 @@ import (
 )
 
 func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) error) {
-
 	if len(req.Question) == 0 {
 		s.qErr(w, req, fmt.Errorf(errQuery))
 		return
@@ -26,11 +25,16 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 		return
 	}
 
-	var resp *dns.Msg
-	var question string
-	var err error
+	question := s.cache.Question(req)
 
-	question = s.cache.Question(req)
+	if s.checkDomainBlacklist(question) {
+		dns.HandleFailed(w, req)
+		s.fwdl.Infof(infoDomainBlacklist, question)
+		return
+	}
+
+	var resp *dns.Msg
+	var err error
 
 	if s.cache.GetTTL() <= 0 {
 		goto forwardUpstream
@@ -153,4 +157,9 @@ func (s *Server) register(msg *dns.Msg) error {
 	}
 
 	return nil
+}
+
+func (s *Server) checkDomainBlacklist(d string) bool {
+	_, ok := s.domainBlacklist[d]
+	return ok
 }

@@ -32,6 +32,7 @@ type Server struct {
 	ctxOnErr                      context.Context
 	cache                         *qc.Queries
 	cacheContext                  *ServiceContext
+	domainBlacklist               map[string]struct{}
 }
 
 // NewDNSServer for creating a new NetTrust DNS Server proxy
@@ -39,6 +40,7 @@ func NewDNSServer(
 	laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCert string,
 	listenTLS, fwdTLS bool,
 	dnsTTLCache int,
+	domainBlacklist []string,
 	logger *logrus.Logger,
 ) (*Server, error) {
 
@@ -72,6 +74,12 @@ func NewDNSServer(
 		client.Net = "tcp-tls"
 	}
 
+	dB := make(map[string]struct{}, len(domainBlacklist))
+
+	for _, j := range domainBlacklist {
+		dB[j] = struct{}{}
+	}
+
 	if fwdTLS && clientCaCert != "" {
 		certPool, err := loadClientCaCert(clientCaCert)
 		if err != nil {
@@ -83,15 +91,16 @@ func NewDNSServer(
 	}
 
 	server := &Server{
-		listenAddr:  laddr,
-		listenTLS:   listenTLS,
-		fwdAddr:     faddr,
-		fwdProto:    fwdProto,
-		fwdTLS:      fwdTLS,
-		dnsTTLCache: dnsTTLCache,
-		logger:      logger,
-		client:      client,
-		cache:       qc.NewCache(dnsTTLCache),
+		listenAddr:      laddr,
+		listenTLS:       listenTLS,
+		fwdAddr:         faddr,
+		fwdProto:        fwdProto,
+		fwdTLS:          fwdTLS,
+		dnsTTLCache:     dnsTTLCache,
+		logger:          logger,
+		client:          client,
+		cache:           qc.NewCache(dnsTTLCache),
+		domainBlacklist: dB,
 	}
 
 	if listenTLS {

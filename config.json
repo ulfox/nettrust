@@ -5,7 +5,8 @@
     },
     "blacklist": {
         "networks": [],
-        "hosts": []
+        "hosts": [],
+        "domains": []
     },
     "fwdAddr": "",
     "fwdProto": "udp",
