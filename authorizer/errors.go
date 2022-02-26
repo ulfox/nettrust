@@ -9,7 +9,6 @@ var (
 	warnPTRIPv6       string = "[PTR IPv6] Question %s resolved to %s but was not authorized. NetTrust does not support IPv6 yet"
 	warnIPv6Support   string = "[IPv6] Question: %s Host: %s NetTrust does not support IPv6 yet"
 	infoNotHandled    string = "[Not Handled] Question %s - Is this local?"
-	infoBlockedNX     string = "[Blocked] Question %s"
 	infoPTRIPv4       string = "[PTR IPv4] Question %s with host %s resolved to %s"
 	infoAuthBlacklist string = "[Blacklisted] Question %s Host: %s"
 	infoAuthBlock     string = "[Blocked] Question %s"

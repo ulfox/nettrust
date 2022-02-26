@@ -22,7 +22,7 @@ func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
 	}
 
 	if len(resp.Answer) == 0 {
-		f.fwl.Infof(infoBlockedNX, question)
+		f.fwl.Infof(infoAuthBlock, question)
 		return nil
 	}
 
