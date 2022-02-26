@@ -322,6 +322,7 @@ func (f *FirewallBackend) DeleteChain(c string) error {
 	return f.nft.Flush()
 }
 
+// DeleteTable Delete Table from nftables
 func (f *FirewallBackend) DeleteTable(t string) error {
 	table, err := f.getTable(t)
 	if err != nil {
