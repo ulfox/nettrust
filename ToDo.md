@@ -3,8 +3,6 @@
 ## Fix
 
 - Conntrack activeHosts throws netfilter query error on MIPS64 SF
-- DNS Cache slows queries (Observed on TPLink Archer C7). Local DNS queries that are not cached take more time compared
-  when compared with the same queries without cache
 
 ## Improvements
 

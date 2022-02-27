@@ -60,7 +60,7 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 
 	if isNXCached := s.cache.ExistsNX(req); isNXCached {
 		if hasExpired := s.cache.HasExpiredNX(req); !hasExpired {
-			s.fwdl.Debugf("[Cache] %s", question)
+			s.fwdl.Debugf(infoCacheObjFoundNil, question)
 			resp = req
 			goto tellClient
 		}
@@ -105,6 +105,10 @@ func (s *Server) qErr(w dns.ResponseWriter, req *dns.Msg, err error) {
 func (s *Server) pushToCache(msg *dns.Msg) error {
 	if len(msg.Answer) == 0 {
 		return s.registerNX(msg)
+	}
+
+	if msg.Answer[0].Header().Rrtype == dns.TypeAAAA {
+		return nil
 	}
 
 	if len(msg.Answer) == 1 {
