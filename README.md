@@ -214,8 +214,12 @@ Usage of ./bin/nettrust:
     	Do not clean up the authorized hosts list on exit. Use this together with do-not-flush-table to keep the NetTrust table as is on exit
   -do-not-flush-table
     	Do not clean up tables when NetTrust exists. Use this flag if you want to continue to deny communication when NetTrust has exited
+  -firewall-backend string
+    	NetTrust firewall backend [nftables/iptables/iptables-nft] that will be used to interact with Netfilter (nftables is only supported for now)
+  -firewall-drop-input
+    	If enabled, NetTrust will drop input. Adds [ct state established,related accept] & ['lo' accept]. Should be enabled only when NetTrust runs in host
   -firewall-type string
-    	NetTrust firewall type (nftables is only supported for now)
+    	NetTrust firewall type. Supported types: OUTPUT (default), FORWARD. The type essentially tells NetTrust on which hook the rules will be added
   -fwd-addr string
     	NetTrust forward dns address
   -fwd-proto string
@@ -263,7 +267,10 @@ You can also use a json config to set options.
     "listenTLS": false,
     "listenCert": "",
     "listenCertKey": "",
-    "firewallType": "nftables",
+
+    "firewallBackend": "nftables",
+    "firewallType": "OUTPUT",
+    "firewallDropInput": false,
 
     "dnsTTLCache": -1,
 
