@@ -72,7 +72,13 @@ func main() {
 
 	// Firewall
 	fw, err := firewall.NewFirewall(
-		config.FirewallType, tableNameOutput, chainNameOutput, logger)
+		config.FirewallBackend,
+		config.FirewallType,
+		tableNameOutput,
+		chainNameOutput,
+		config.FirewallDropInput,
+		logger,
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -149,9 +155,11 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		err = fw.DeleteChain(chainNameInput)
-		if err != nil {
-			log.Fatal(err)
+		if config.FirewallDropInput {
+			err = fw.DeleteChain(chainNameInput)
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 		err = fw.DeleteTable(tableNameOutput)
 		if err != nil {

@@ -9,7 +9,9 @@ var (
 	listenAddr, listenCert, listenCertKey *string
 	listenTLS                             *bool
 
-	firewallType                        *string
+	firewallBackend, firewallType *string
+	firewallDropInput             *bool
+
 	whitelistLoopback, whitelistPrivate *bool
 
 	authorizedTTL, ttlCheckTicker *int
@@ -30,6 +32,7 @@ func init() {
 		false,
 		"Do not clean up the authorized hosts list on exit. Use this together with do-not-flush-table to keep the NetTrust table as is on exit",
 	)
+
 	fwdAddr = flag.String("fwd-addr", "", "NetTrust forward dns address")
 	fwdProto = flag.String("fwd-proto", "", "NetTrust dns forward protocol")
 	fwdTLS = flag.Bool(
@@ -42,11 +45,28 @@ func init() {
 		"",
 		"path to certificate that will be used to validate forward dns hostname. If you do not set this, the the host root CAs will be used",
 	)
+
 	listenAddr = flag.String("listen-addr", "", "NetTrust listen dns address")
 	listenTLS = flag.Bool("listen-tls", false, "Enable tls listener, tls listener works only with the TCP DNS Service, UDP will continue to serve in plaintext mode")
 	listenCert = flag.String("listen-cert", "", "path to certificate that will be used by the TCP DNS Service to serve DoT")
 	listenCertKey = flag.String("listen-cert-key", "", "path to the private key that will be used by the TCP DNS Service to serve DoT")
-	firewallType = flag.String("firewall-type", "", "NetTrust firewall type (nftables is only supported for now)")
+
+	firewallBackend = flag.String(
+		"firewall-backend",
+		"",
+		"NetTrust firewall backend [nftables/iptables/iptables-nft] that will be used to interact with Netfilter (nftables is only supported for now)",
+	)
+	firewallType = flag.String(
+		"firewall-type",
+		"",
+		"NetTrust firewall type. Supported types: OUTPUT (default), FORWARD. The type essentially tells NetTrust on which hook the rules will be added",
+	)
+	firewallDropInput = flag.Bool(
+		"firewall-drop-input",
+		false,
+		"If enabled, NetTrust will drop input. Adds [ct state established,related accept] & ['lo' accept]. Should be enabled only when NetTrust runs in host",
+	)
+
 	whitelistLoopback = flag.Bool(
 		"whitelist-loopback",
 		true,
@@ -57,6 +77,7 @@ func init() {
 		true,
 		"If 10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16, 100.64.0.0/10 will be whitelisted (default true)",
 	)
+
 	authorizedTTL = flag.Int(
 		"authorized-ttl",
 		0,
@@ -67,6 +88,9 @@ func init() {
 		0,
 		"How often NetTrust should check the cache for expired authorized hosts (Checking is blocking, do not put small numbers)",
 	)
+
 	fileCFG = flag.String("config", "", "Path to config.json")
+
 	dnsTTLCache = flag.Int("dns-ttl-cache", 0, "Number of seconds dns queries stay in cache (-1 to disable caching)")
+
 }

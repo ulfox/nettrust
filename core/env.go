@@ -31,7 +31,9 @@ type NetTrust struct {
 	ListenTLS                 bool   `json:"listenTLS"`
 	ListenCert                string `json:"listenCert"`
 	ListenCertKey             string `json:"listenCertKey"`
+	FirewallBackend           string `json:"firewallBackend"`
 	FirewallType              string `json:"firewallType"`
+	FirewallDropInput         bool   `json:"firewallDropInput"`
 	WhitelistLoEnabled        bool   `json:"whitelistLoEnabled"`
 	WhitelistPrivateEnabled   bool   `json:"whitelistPrivateEnabled"`
 	WhitelistLo               []string
@@ -151,10 +153,20 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		return nil, fmt.Errorf(errSameAddr)
 	}
 
+	if *firewallBackend == "" && config.FirewallBackend == "" {
+		config.FirewallBackend = "nftables"
+	} else if *firewallBackend != "" {
+		config.FirewallBackend = *firewallBackend
+	}
+
 	if *firewallType == "" && config.FirewallType == "" {
-		config.FirewallType = "nftables"
+		config.FirewallType = "OUTPUT"
 	} else if *firewallType != "" {
 		config.FirewallType = *firewallType
+	}
+
+	if *firewallDropInput {
+		config.FirewallDropInput = *firewallDropInput
 	}
 
 	if *authorizedTTL == 0 && config.AuthorizedTTL == 0 {
