@@ -17,7 +17,9 @@
     "listenTLS": false,
     "listenCert": "",
     "listenCertKey": "",
-    "firewallType": "nftables",
+    "firewallBackend": "nftables",
+    "firewallType": "OUTPUT",
+    "firewallDropInput": false,
 
     "dnsTTLCache": -1,
 

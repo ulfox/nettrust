@@ -4,13 +4,11 @@ import (
 	"sync"
 
 	"github.com/google/nftables"
-	"github.com/sirupsen/logrus"
 )
 
 // FirewallBackend for nftables
 type FirewallBackend struct {
 	sync.Mutex
-	logger               *logrus.Logger
 	nft                  *nftables.Conn
 	tableName, chainName string
 	table                *nftables.Table
@@ -18,35 +16,52 @@ type FirewallBackend struct {
 }
 
 // NewFirewallBackend for creating a new nftables FirewaBackend
-func NewFirewallBackend(t, c string, l *logrus.Logger) (*FirewallBackend, error) {
+func NewFirewallBackend(hook, table, chain string) (*FirewallBackend, error) {
 	firewallBackend := &FirewallBackend{
-		logger:    l,
 		nft:       &nftables.Conn{},
-		tableName: t,
-		chainName: c,
+		tableName: table,
+		chainName: chain,
 	}
 
-	err := firewallBackend.CreateIPv4Table(t)
+	// HookType [OUTPUT/FORWARD]
+	var hT nftables.ChainHook
+	// ChainType [FILTER]. We may add more ChainTypes in the future
+	// but for now NetFilter will handle only Host Outbound requests
+	// on FILTER/OUTPUT or for intermediate gateways on FILTER/FORWARD
+	var cT nftables.ChainType
+	switch hook {
+	case "OUTPUT":
+		hT = nftables.ChainHookOutput
+		cT = nftables.ChainTypeFilter
+	case "FORWARD":
+		hT = nftables.ChainHookForward
+		cT = nftables.ChainTypeFilter
+	default:
+		hT = nftables.ChainHookOutput
+		cT = nftables.ChainTypeFilter
+	}
+
+	err := firewallBackend.CreateIPv4Table(table)
 	if err != nil {
 		return nil, err
 	}
 
-	nt, err := firewallBackend.getTable(t)
+	nt, err := firewallBackend.getTable(table)
 	if err != nil {
 		return nil, err
 	}
 
 	err = firewallBackend.CreateIPv4Chain(
-		t,
-		c,
-		string(nftables.ChainTypeFilter),
-		int(nftables.ChainHookOutput),
+		table,
+		chain,
+		string(cT),
+		int(hT),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	nc, err := firewallBackend.getChain(c)
+	nc, err := firewallBackend.getChain(chain)
 	if err != nil {
 		return nil, err
 	}
@@ -54,35 +69,41 @@ func NewFirewallBackend(t, c string, l *logrus.Logger) (*FirewallBackend, error)
 	firewallBackend.table = nt
 	firewallBackend.chain = nc
 
-	err = firewallBackend.CreateIPv4Table(t)
+	return firewallBackend, nil
+}
+
+// DropIPv4Input for creating FILTER/INPUT chain that drops all inbound traffic except
+// loopback traffic or established,related traffic
+func (f *FirewallBackend) DropIPv4Input(table, chain string) error {
+	err := f.CreateIPv4Table(table)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	nti, err := firewallBackend.getTable(t)
+	nti, err := f.getTable(table)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = firewallBackend.CreateIPv4Chain(
-		t,
+	err = f.CreateIPv4Chain(
+		table,
 		"input",
 		string(nftables.ChainTypeFilter),
 		int(nftables.ChainHookInput),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	nci, err := firewallBackend.getChain("input")
+	nci, err := f.getChain("input")
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = firewallBackend.createChainInputWithEstablished(nti, nci)
+	err = f.createChainInputWithEstablished(nti, nci)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return firewallBackend, nil
+	return nil
 }

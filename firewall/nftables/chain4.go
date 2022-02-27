@@ -235,7 +235,6 @@ func (f *FirewallBackend) AddTailingReject() error {
 			}
 
 			if i != (totalRules - 1) {
-				f.logger.Warn(warnRejectNotTailing)
 				f.Lock()
 				f.nft.AddRule(&nftables.Rule{
 					Table: f.table,

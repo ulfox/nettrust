@@ -7,5 +7,4 @@ var (
 	errNotSuchIPv4NetRule  string = "could not find network rule with cidr [%s]"
 	errNotSuchIPv4AddrRule string = "could not find rule with ip [%s]"
 	errNoSuchIPv4SetRule   string = "could not find set rule with name [%s]"
-	warnRejectNotTailing   string = "reject is not a tailing rule. Re-creating as tailing"
 )
