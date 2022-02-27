@@ -1,9 +1,14 @@
 # ToDo List
 
+## Fix
+
+- Conntrack activeHosts throws netfilter query error on MIPS64 SF
+- DNS Cache slows queries (Observed on TPLink Archer C7). Local DNS queries that are not cached take more time compared
+  when compared with the same queries without cache
+
 ## Improvements
 
 - Check chains priority and ensure NetTrust Chain has high priority in the related table
-- Make nftable module more dynamic. Add DNAT & SNAT filtering. Add jump rules, enable logging
 
 ## Features
 
@@ -14,7 +19,6 @@
 - DNS listen strikes on many invalid/block requests
 - Handle IPv6 also
 - Add support for reverse queries, essentially whitelisting IPs if the DNS Authorizer returns a domain back to NetTrust
-- Add NAT Filtering to allow NetTrust to run as an intermediate (GW) server. Currently NetTrust filters only OUTPUT Hook from the Filtering table. NAT/PREROUTING should also be available soon
 - Add metrics capabilities to monitor NetTrust
 - Add network statistics (e.g. how many times a host was queried) to allow alerts/notifications on certain events
 - Add DNSSec
