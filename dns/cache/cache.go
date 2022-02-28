@@ -77,72 +77,72 @@ func (c *Queries) Question(msg *dns.Msg) string {
 }
 
 // Exists (blocking) returns true if a question is in cache
-func (c *Queries) Exists(msg *dns.Msg) bool {
+func (c *Queries) Exists(q string) bool {
 	c.Lock()
 	defer c.Unlock()
 
-	_, ok := c.resolved[c.Question(msg)]
+	_, ok := c.resolved[q]
 
 	return ok
 }
 
 // ExistsNX (blocking) returns true if a question is in NX cache
-func (c *Queries) ExistsNX(msg *dns.Msg) bool {
+func (c *Queries) ExistsNX(q string) bool {
 	c.Lock()
 	defer c.Unlock()
 
-	_, ok := c.nx[c.Question(msg)]
+	_, ok := c.nx[q]
 
 	return ok
 }
 
 // HasExpired for checking if a specific question in cache has expired
-func (c *Queries) HasExpired(msg *dns.Msg) bool {
-	if !c.Exists(msg) {
+func (c *Queries) HasExpired(s string) bool {
+	if !c.Exists(s) {
 		return true
 	}
 
 	c.Lock()
 	defer c.Unlock()
 
-	q := c.resolved[c.Question(msg)]
+	q := c.resolved[s]
 
 	return time.Since(q.T) > time.Second*time.Duration(c.ttl)
 }
 
 // HasExpiredNX for checking if a specific question in NX cache has expired
-func (c *Queries) HasExpiredNX(msg *dns.Msg) bool {
-	if !c.ExistsNX(msg) {
+func (c *Queries) HasExpiredNX(s string) bool {
+	if !c.ExistsNX(s) {
 		return true
 	}
 
 	c.Lock()
 	defer c.Unlock()
 
-	q := c.nx[c.Question(msg)]
+	q := c.nx[s]
 
 	return time.Since(q) > time.Second*time.Duration(c.ttl)
 }
 
 // Get for getting a cached question from the cache
-func (c *Queries) Get(msg *dns.Msg) *dns.Msg {
-	if c.Exists(msg) {
-		return c.resolved[c.Question(msg)].M
+func (c *Queries) Get(s string) *dns.Msg {
+	if c.Exists(s) {
+		return c.resolved[s].M
 	}
 
 	return nil
 }
 
 // Register (blocking) for adding a new question to cache
-func (c *Queries) Register(msg *dns.Msg) bool {
-	if c.Exists(msg) {
+func (c *Queries) Register(s string, msg *dns.Msg) bool {
+	if c.Exists(s) {
 		return false
 	}
 
 	c.Lock()
 	defer c.Unlock()
 
-	c.resolved[c.Question(msg)] = Answered{
+	c.resolved[s] = Answered{
 		M: msg,
 		T: time.Now(),
 	}
@@ -151,29 +151,29 @@ func (c *Queries) Register(msg *dns.Msg) bool {
 }
 
 // RegisterNX (blocking) for adding a new question to NX cache
-func (c *Queries) RegisterNX(msg *dns.Msg) bool {
-	if c.ExistsNX(msg) {
+func (c *Queries) RegisterNX(s string) bool {
+	if c.ExistsNX(s) {
 		return false
 	}
 
 	c.Lock()
 	defer c.Unlock()
 
-	c.nx[c.Question(msg)] = time.Now()
+	c.nx[s] = time.Now()
 
 	return true
 }
 
 // Renew (blocking) for updating ttl for a question in cache
-func (c *Queries) Renew(msg *dns.Msg) bool {
-	if !c.Exists(msg) {
-		return c.Register(msg)
+func (c *Queries) Renew(s string, msg *dns.Msg) bool {
+	if !c.Exists(s) {
+		return c.Register(s, msg)
 	}
 
 	c.Lock()
 	defer c.Unlock()
 
-	e := c.resolved[c.Question(msg)]
+	e := c.resolved[s]
 
 	e.T = time.Now()
 
@@ -181,15 +181,15 @@ func (c *Queries) Renew(msg *dns.Msg) bool {
 }
 
 // RenewNX (blocking) for updating a ttl for a question in NX cache
-func (c *Queries) RenewNX(msg *dns.Msg) bool {
-	if !c.ExistsNX(msg) {
-		return c.RegisterNX(msg)
+func (c *Queries) RenewNX(s string) bool {
+	if !c.ExistsNX(s) {
+		return c.RegisterNX(s)
 	}
 
 	c.Lock()
 	defer c.Unlock()
 
-	c.nx[c.Question(msg)] = time.Now()
+	c.nx[s] = time.Now()
 
 	return true
 }

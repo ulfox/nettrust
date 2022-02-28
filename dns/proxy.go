@@ -40,14 +40,21 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 		goto forwardUpstream
 	}
 
-	if isCached := s.cache.Exists(req); isCached {
-		if hasExpired := s.cache.HasExpired(req); hasExpired {
-			s.cache.Delete(s.cache.Question(req))
+	// We need to handle IPv6 cache differently
+	// Maybe a new cache or appening a string to
+	// keep IPv6 records apart from IPv4
+	if req.Question[0].Qtype == dns.TypeAAAA {
+		goto forwardUpstream
+	}
+
+	if isCached := s.cache.Exists(question); isCached {
+		if hasExpired := s.cache.HasExpired(question); hasExpired {
+			s.cache.Delete(question)
 			s.fwdl.Debugf(infoCacheObjExpired, question)
 			goto forwardUpstream
 		}
 
-		r := s.cache.Get(req)
+		r := s.cache.Get(question)
 		if r != nil {
 			s.fwdl.Debugf(infoCacheObjFound, question)
 			resp = r
@@ -58,14 +65,14 @@ func (s *Server) fwd(w dns.ResponseWriter, req *dns.Msg, fn func(resp *dns.Msg) 
 		s.fwdl.Errorf(errCacheFetch, question)
 	}
 
-	if isNXCached := s.cache.ExistsNX(req); isNXCached {
-		if hasExpired := s.cache.HasExpiredNX(req); !hasExpired {
+	if isNXCached := s.cache.ExistsNX(question); isNXCached {
+		if hasExpired := s.cache.HasExpiredNX(question); !hasExpired {
 			s.fwdl.Debugf(infoCacheObjFoundNil, question)
 			resp = req
 			goto tellClient
 		}
 
-		s.cache.DeleteNX(s.cache.Question(req))
+		s.cache.DeleteNX(question)
 		s.fwdl.Debugf(infoCacheObjExpired, question)
 	}
 
@@ -98,17 +105,18 @@ tellClient:
 
 func (s *Server) qErr(w dns.ResponseWriter, req *dns.Msg, err error) {
 	s.fwdl.Error(err)
-	s.cache.RegisterNX(req)
+	s.cache.RegisterNX(s.cache.Question(req))
 	dns.HandleFailed(w, req)
 }
 
 func (s *Server) pushToCache(msg *dns.Msg) error {
-	if len(msg.Answer) == 0 {
-		return s.registerNX(msg)
+	// Do not register IPv6 (see commend at line ~43 for additional info)
+	if msg.Question[0].Qtype == dns.TypeAAAA {
+		return nil
 	}
 
-	if msg.Answer[0].Header().Rrtype == dns.TypeAAAA {
-		return nil
+	if len(msg.Answer) == 0 {
+		return s.registerNX(msg)
 	}
 
 	if len(msg.Answer) == 1 {
@@ -129,35 +137,41 @@ func (s *Server) pushToCache(msg *dns.Msg) error {
 }
 
 func (s *Server) registerNX(msg *dns.Msg) error {
-	if exists := s.cache.ExistsNX(msg); exists {
-		if expired := s.cache.HasExpiredNX(msg); expired {
-			ok := s.cache.RenewNX(msg)
+	q := s.cache.Question(msg)
+
+	if exists := s.cache.ExistsNX(q); exists {
+		if expired := s.cache.HasExpiredNX(q); expired {
+			ok := s.cache.RenewNX(q)
 			if !ok {
-				return fmt.Errorf(errCacheCoulndNotRenew, s.cache.Question(msg))
+				return fmt.Errorf(errCacheCoulndNotRenew, q)
 			}
 		}
 		return nil
 	}
-	ok := s.cache.RegisterNX(msg)
+
+	ok := s.cache.RegisterNX(q)
 	if !ok {
-		return fmt.Errorf(errCacheRegister, s.cache.Question(msg))
+		return fmt.Errorf(errCacheRegister, q)
 	}
 	return nil
 }
 
 func (s *Server) register(msg *dns.Msg) error {
-	if exists := s.cache.Exists(msg); exists {
-		if expired := s.cache.HasExpired(msg); expired {
-			ok := s.cache.Renew(msg)
+	q := s.cache.Question(msg)
+
+	if exists := s.cache.Exists(q); exists {
+		if expired := s.cache.HasExpired(q); expired {
+			ok := s.cache.Renew(q, msg)
 			if !ok {
-				return fmt.Errorf(errCacheCoulndNotRenew, s.cache.Question(msg))
+				return fmt.Errorf(errCacheCoulndNotRenew, q)
 			}
 		}
 		return nil
 	}
-	ok := s.cache.Register(msg)
+
+	ok := s.cache.Register(q, msg)
 	if !ok {
-		return fmt.Errorf(errCacheRegister, s.cache.Question(msg))
+		return fmt.Errorf(errCacheRegister, q)
 	}
 
 	return nil
