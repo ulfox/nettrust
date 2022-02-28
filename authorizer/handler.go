@@ -16,12 +16,20 @@ func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
 
 	question := resp.Question[0].Name
 
-	if resp.Rcode != dns.RcodeSuccess {
-		f.fwl.Debugf(infoNotHandled, question)
+	if resp.Rcode == dns.RcodeNameError {
+		f.fwl.Infof(infoNXDomain, question)
 		return nil
 	}
 
+	if resp.Rcode != dns.RcodeSuccess {
+		return fmt.Errorf(errRcode, question, resp.Rcode)
+	}
+
 	if len(resp.Answer) == 0 {
+		if resp.Question[0].Qtype == dns.TypeAAAA {
+			f.fwl.Infof(infoAuthIPv6Block, question)
+			return nil
+		}
 		f.fwl.Infof(infoAuthBlock, question)
 		return nil
 	}
@@ -57,6 +65,8 @@ func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
 				f.fwl.Warnf(warnIPv6Support, question, r.AAAA.String())
 			}
 		}
+
+		return nil
 	}
 
 	if resp.Question[0].Qtype == dns.TypePTR {
@@ -98,6 +108,8 @@ func (f *Authorizer) HandleRequest(resp *dns.Msg) error {
 
 		return nil
 	}
+
+	f.fwl.Warnf(warnNotSupportedQuery, resp.Question[0].Qtype, question)
 
 	return nil
 }
