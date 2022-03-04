@@ -6,6 +6,7 @@ var (
 	doNotFlushTable                       *bool
 	doNotFlushAuthorizedHosts, fwdTLS     *bool
 	fwdAddr, fwdProto, fwdTLSCert         *string
+	fwdUDPBufferSize                      *uint16
 	listenAddr, listenCert, listenCertKey *string
 	listenTLS                             *bool
 
@@ -45,6 +46,9 @@ func init() {
 		"",
 		"path to certificate that will be used to validate forward dns hostname. If you do not set this, the the host root CAs will be used",
 	)
+
+	ubs := uint16(*flag.Uint("fwd-udp-buffer-size", 0, "forward client udp buffer size, default 4096"))
+	fwdUDPBufferSize = &ubs
 
 	listenAddr = flag.String("listen-addr", "", "NetTrust listen dns address")
 	listenTLS = flag.Bool("listen-tls", false, "Enable tls listener, tls listener works only with the TCP DNS Service, UDP will continue to serve in plaintext mode")

@@ -27,6 +27,7 @@ type NetTrust struct {
 	FWDProto                  string `json:"fwdProto"`
 	FWDTLS                    bool   `json:"fwdTLS"`
 	FWDCaCert                 string `json:"fwdCaCert"`
+	FWDUDPBufferSize          uint16 `json:"fwdUDPBufferSize"`
 	ListenAddr                string `json:"listenAddr"`
 	ListenTLS                 bool   `json:"listenTLS"`
 	ListenCert                string `json:"listenCert"`
@@ -114,6 +115,10 @@ func GetNetTrustEnv() (*NetTrust, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if *fwdUDPBufferSize != 0 {
+		config.FWDUDPBufferSize = *fwdUDPBufferSize
 	}
 
 	if *listenAddr != "" {

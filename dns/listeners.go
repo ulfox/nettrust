@@ -106,6 +106,7 @@ func (s *Server) UDPListenBackground(fn func(resp *dns.Msg) error) *ServiceConte
 	dnsServerContext.cancel = cancelListener
 
 	s.udpServer = &dns.Server{
+		//UDPSize: 4096,
 		Addr: s.listenAddr, Net: "udp",
 		Handler: dns.HandlerFunc(
 			func(w dns.ResponseWriter, r *dns.Msg) {

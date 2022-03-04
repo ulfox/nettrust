@@ -12,6 +12,7 @@
     "fwdProto": "udp",
     "fwdCaCert": "",
     "fwdTLS": false,
+    "fwdUDPBufferSize": 4096,
 
     "listenAddr": "127.0.0.1:53",
     "listenTLS": false,

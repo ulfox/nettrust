@@ -23,6 +23,7 @@ type Server struct {
 	listenAddr, fwdAddr, fwdProto string
 	listenTLS, fwdTLS, sigOnce    bool
 	dnsTTLCache                   int
+	clientUDPBufferSize           uint16
 	listenCerts                   *tls.Certificate
 	logger                        *logrus.Logger
 	fwdl                          *logrus.Entry
@@ -40,6 +41,7 @@ func NewDNSServer(
 	laddr, faddr, fwdProto, listenCert, ListenCertKey, clientCaCert string,
 	listenTLS, fwdTLS bool,
 	dnsTTLCache int,
+	clientUDPBufferSize uint16,
 	domainBlacklist []string,
 	logger *logrus.Logger,
 ) (*Server, error) {
@@ -69,7 +71,8 @@ func NewDNSServer(
 		logger.Warn(warnFWDTLSPort)
 	}
 
-	client := &dns.Client{Net: fwdProto}
+	client := &dns.Client{Net: fwdProto, UDPSize: uint16(clientUDPBufferSize)}
+	// client := &dns.Client{Net: fwdProto}
 	if fwdTLS {
 		client.Net = "tcp-tls"
 	}

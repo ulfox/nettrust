@@ -63,6 +63,7 @@ func main() {
 		config.ListenTLS,
 		config.FWDTLS,
 		config.DNSTTLCache,
+		config.FWDUDPBufferSize,
 		config.Blacklist.Domains,
 		logger,
 	)
