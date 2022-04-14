@@ -10,6 +10,9 @@
 
 ## Features
 
+- (Depends on namespace filtering and Nettrust follower agents & K8 network policies features) Kubernetes operator. Allow nettrust to be deployed and managed by a K8 operator. Nettrust can use coredns or other dns authorizers to filter the outbound traffic within the nodes
+- Nettrust follower agent. In this feature Nettrust can run as a follower. While in follower mode, it will query a master agent or operator in order: fetch the configuration, use a shared authorized map.
+- Nettrust K8 Network Policies. Allow Nettrust to filter traffic using K8 Network policies instead of nftables. In this mode Nettrust will not need elevated privileges 
 - When filtering forward chain, allow Nettrust to whitelist hosts by source network. This feature can allow the gateway where nettrust is running to allow connections to 0.0.0.0/0 that are sourced from a subnet/s and deny connections that have not been authorized for all other subnets
 - Cloud provider plugin
 - Add option for TLS Client authendication
