@@ -10,6 +10,7 @@
 
 ## Features
 
+- When filtering forward chain, allow Nettrust to whitelist hosts by source network. This feature can allow the gateway where nettrust is running to allow connections to 0.0.0.0/0 that are sourced from a subnet/s and deny connections that have not been authorized for all other subnets
 - Cloud provider plugin
 - Add option for TLS Client authendication
 - Add eBPF filtering to allow NetTrust block packets before they enter the Kenrel network stack
